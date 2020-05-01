@@ -1,5 +1,5 @@
 # COVID_WI_state
-Examination of state COVID related data
+Examination of control charts as alternative to proposed regression method to 
 
 ## Background
 
