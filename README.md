@@ -15,7 +15,7 @@ If you are familiar with the R language and are able to run RMarkdown files, the
 
 The markdown file does not yet automatically access data from the [DHS data webpage](https://data.dhsgis.wi.gov/datasets/covid-19-historical-data-table/data?where=%20(GEO%20%3D%20%27County%27%20OR%20GEO%20%3D%20%27State%27)%20).  
 
-Use the [CSV file]https://github.com/klittle314/COVID_WI_state/blob/master/COVID-19_Historical_Data_Table_2020_04_30_21_46.csv) in the same local directory as the RMarkdown file to view the graphs.
+Use the [CSV file](https://github.com/klittle314/COVID_WI_state/blob/master/COVID-19_Historical_Data_Table_2020_04_30_21_46.csv) in the same local directory as the RMarkdown file to view the graphs.
 
 **Want more information?**  Email [Kevin Little](mailto:klittle@iecodesign.com?subject=[GitHub]%20COVID_WI_state).
 
