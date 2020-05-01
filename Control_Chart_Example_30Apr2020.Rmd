@@ -1,0 +1,260 @@
+---
+title: 'Control chart example:  Per cent Daily Positive Tests'
+author: "Kevin Little,Ph.D., Informing Ecological Design, LLC"
+date: "5/1/2020"
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+---
+
+### Gating Criteria from State DHS
+Symptoms 	Downward trajectory of influenza-like illnesses (ILI) reported within a 14-day period. 	Red indicator = no progress
+
+Symptoms 	Downward trajectory of COVID-like syndromic cases reported within a 14-day period. 	Red indicator = no progress
+
+Cases 	Downward trajectory of positive tests as a percent of total tests within a 14-day period. 	Red indicator = no progress
+
+Hospitals 	Criteria are currently under development in partnership with Wisconsin healthcare stakeholders.
+
+
+### Testing Data:  Plots of Daily Counts
+```{r setup, include=FALSE}
+library(readr)
+library(tidyverse)
+library(GGally)
+library(gridExtra)
+
+knitr::opts_chunk$set(echo = FALSE)
+#figure out how to automate the load from the state site https://data.dhsgis.wi.gov/datasets/covid-19-historical-data-table/data
+#file manually downloaded on 4-30 at 9 pm.
+df1 <- read_csv("COVID-19_Historical_Data_Table_2020_04_30_21_46.csv")
+
+
+#pull state and county records
+df1 <- df1 %>% filter(GEO %in% c('State','County'))
+
+#time records trashed on conversion to CSV
+df1$Date_Time <- df1$LoadDttm/1000
+
+class(df1$Date_Time) <- c('POSIXt','POSIXct')
+df1$Date_reported <- as.Date(df1$Date_Time)
+
+#distinguish baseline from most recent 14 days
+cut_date <- max(df1$Date_reported) - 14
+
+df1$phase <- ifelse(df1$Date_reported <= cut_date,"baseline","last 14 days")
+
+#subset data to look at state-wide numbers
+#apparent error in NEGATIVE results on 29 and 30 March
+df1_small_state <- df1 %>% select(GEO,NAME,Date_reported,NEGATIVE,POSITIVE,phase) %>% filter(GEO == 'State')
+df1_small_state$NEGATIVE[df1_small_state$Date_reported == as.Date("2020-03-29")] <- 15856
+df1_small_state$NEGATIVE[df1_small_state$Date_reported == as.Date("2020-03-30")] <- 16550
+
+#now convert cumulative counts to daily counts
+df1_small_state <- df1_small_state %>%
+                  group_by(NAME) %>% 
+  mutate(lag_POSITIVE=lag(POSITIVE)) %>% mutate(POSITIVE_daily = POSITIVE-lag_POSITIVE) %>%
+  mutate(lag_NEGATIVE=lag(NEGATIVE)) %>% mutate(NEGATIVE_daily = NEGATIVE - lag_NEGATIVE) %>%
+  mutate(Total_daily_tests = POSITIVE_daily + NEGATIVE_daily) %>%
+  mutate(POS_pct_daily = 100*(POSITIVE_daily/Total_daily_tests)) 
+
+#knitr::kable(head(df1_small_state))
+```
+
+
+
+
+
+```{r initial_plots, echo=FALSE, warning=FALSE, message=FALSE, fig.height=8}
+df1_small_state_longer <- df1_small_state %>% pivot_longer(cols = -c("GEO","NAME","Date_reported","phase"),
+                                               names_to = "Measure",
+                                               values_to = "value")
+
+dfA <- df1_small_state_longer %>% filter(Measure %in% c('NEGATIVE_daily','POS_pct_daily','POSITIVE_daily','Total_daily_tests'))
+dfA$Measure <- factor(dfA$Measure, levels=c("POSITIVE_daily", 'NEGATIVE_daily','Total_daily_tests','POS_pct_daily'))
+
+#create medians
+med_A <- as.vector(tapply(dfA$value,dfA$Measure, median, na.rm=TRUE))
+Measure <- levels(dfA$Measure)
+df.hlines <- data.frame(Measure, med_A)
+
+p1 <- ggplot(data=dfA,aes(x=Date_reported,y=value))+
+        theme_bw()+
+        geom_point(aes(shape=phase))+
+        facet_wrap(~Measure,
+                   ncol = 1,
+                   scales = 'free_y')+
+        labs(title="Test counts",
+             subtitle="Dashed lines are medians for entire series")+
+        geom_hline(aes(yintercept=med_A),data=df.hlines,lty=2)+
+        ylab("")+
+        xlab("Date Reported")+
+        annotate("rect", fill = "blue", alpha = 0.1, 
+            xmin = cut_date + .5, xmax = max(dfA$Date_reported)+.5,
+            ymin = -Inf, ymax = Inf)
+
+p1 
+
+```
+
+### Control Chart view:  Daily Percent Positive Tests 
+Compute control limits shown via three options:
+
+1. specify all variation as within day (p-chart structure, binomial variation).
+
+2. specify all variation as between days (individuals chart structure, point to point variation using standard control chart scaling)
+
+3. allow variation as combination of within and between day variation per D.B. Laney ((2002), “Improved Control Charts for Attributes,” *Quality Engineering*, **14**(4), 531–537).
+
+As the number of daily tests will likely continue to increase, it makes sense to account for variation in count size.  My current vote is option 3.
+
+In any approach, calculate the control chart center line (average) and the limits using a baseline data series 14 records shorter than the entire record.
+
+Extend the center line and limits based on the baseline calculations.  Examine the chart for signals of special causes of variation.
+
+Plot the 5% gating level to examine relationship of current positive rate to the 5% level.
+
+If there are no special cause signals, on the next day, extend the baseline by 1 day. 
+
+Repeat.
+
+
+
+```{r control_charts, echo=FALSE, warning=FALSE, message=FALSE, fig.height=4}
+df0 <- df1_small_state %>% filter(Date_reported >= as.Date("2020-03-25"))
+
+df0$pi <- df0$POS_pct_daily/100
+
+df0_baseline <- df0 %>% filter(Date_reported <= max(Date_reported) - 14)
+
+#compute binomial limits
+df0$qi <- 1 - df0$pi
+p_bar <-sum(df0_baseline$POSITIVE_daily)/sum(df0_baseline$Total_daily_tests)
+df0$sigma_pi <- sqrt(p_bar*(1-p_bar)/df0$Total_daily_tests)
+df0$p_UCL <- p_bar + 3*df0$sigma_pi
+df0$p_LCL <- p_bar - 3*df0$sigma_pi
+
+#compute z scores and assess variation in z scores
+df0$zi <- (df0$pi - p_bar)/df0$sigma_pi
+Rzi <- abs(diff(df0$zi[df0$Date_reported <= max(df0$Date_reported)-14]))
+sigma_zi <- mean(Rzi)/1.128
+df0$Laney_sigma <- df0$sigma_pi*sigma_zi
+df0$pprime_LCL <- p_bar - 3*df0$Laney_sigma
+df0$pprime_UCL <- p_bar + 3*df0$Laney_sigma
+
+#compute I chart values
+p_barI <- mean(df0_baseline$pi)  #assumes equal weighting of the Lot proportions
+Rpi <- abs(diff(df0_baseline$pi))
+sigma_aver_Rpi <- mean(Rpi)/1.128
+sigma_median_Rpi <- median(Rpi)/0.9554
+
+pchart <- ggplot(data=df0,aes(x=Date_reported,y=100*pi)) +
+  theme_bw()+
+  geom_point(aes(shape=phase),size=rel(2))+
+  geom_line()+
+  labs(title="p control chart for Pct Positive tests",
+       x=" ",
+       y="%",
+       subtitle="Limits based on binomial variation, scaled by daily n; baseline period unshaded") +
+  geom_hline(yintercept=100*p_bar)+
+  geom_line(aes(x=Date_reported,y=100*p_LCL),linetype='dashed')+
+  geom_line(aes(x=Date_reported,y=100*p_UCL),linetype='dashed')+
+  geom_hline(yintercept= 5, colour="blue",lty="dotted")+
+  ylim(0,20)+
+  annotate("rect", fill = "blue", alpha = 0.1, 
+        xmin = cut_date + .5, xmax = max(df0$Date_reported)+.5,
+        ymin = -Inf, ymax = Inf)+
+  scale_shape_discrete(na.translate=FALSE)+
+         theme(legend.position = c(0.99, 0.99),
+               legend.justification = c("right", "top"),
+               legend.text = element_text(size = 6),
+               legend.title= element_text(size = 8))
+
+pchart
+
+#ichart
+ichart <-ggplot(data=df0,aes(x=Date_reported,y=100*pi)) +
+  theme_bw()+
+  geom_point(aes(shape=phase),size=rel(2))+
+  geom_line()+
+  labs(title="Individuals control chart for Pct Positive tests",
+       x="",
+       y="%",
+       subtitle="Limits based between day variation ignoring test counts; baseline period unshaded") +
+  geom_hline(yintercept=100*p_barI)+
+  geom_hline(yintercept= 5, colour="blue",lty="dotted")+
+  ylim(0,20)+
+  annotate("rect", fill = "blue", alpha = 0.1, 
+        xmin = cut_date + .5, xmax = max(df0$Date_reported)+.5,
+        ymin = -Inf, ymax = Inf)+
+  scale_shape_discrete(na.translate=FALSE)+
+         theme(legend.position = c(0.99, 0.99),
+              legend.justification = c("right", "top"),
+              legend.text = element_text(size = 6),
+              legend.title= element_text(size = 8))
+
+ichart_Median <- ichart+ geom_line(aes(x=Date_reported,y=100*(p_barI - 3*sigma_median_Rpi)),linetype='dashed')+
+  geom_line(aes(x=Date_reported,y=100*(p_barI + 3*sigma_median_Rpi)),linetype='dashed')+
+  labs(caption="Limits based on median moving range")
+#ichart_Median
+
+ichart_Mean <- ichart+ geom_line(aes(x=Date_reported,y=100*(p_barI - 3*sigma_aver_Rpi)),linetype='dashed')+
+  geom_line(aes(x=Date_reported,y=100*(p_barI + 3*sigma_aver_Rpi)),linetype='dashed') +
+  labs(caption="Limits use average moving range; option is to use median moving range")
+ichart_Mean
+
+#make p prime chart
+pprime_chart <-ggplot(data=df0,aes(x=Date_reported,y=100*pi)) +
+  theme_bw()+
+  geom_point(aes(shape=phase),size=rel(2))+
+  geom_line()+
+  labs(title="p' control chart for Pct Positive",
+       x="",
+       y="%",
+       subtitle="Limits based on Laney calculations; baseline period unshaded") +
+  geom_hline(yintercept=100*p_bar)+
+  geom_line(aes(x=Date_reported,y=100*pprime_LCL),linetype='dashed')+
+  geom_line(aes(x=Date_reported,y=100*pprime_UCL),linetype='dashed')+
+  geom_hline(yintercept= 5, colour="blue",lty="dotted")+
+  ylim(0,20)+
+  scale_shape_discrete(na.translate=FALSE)+
+         theme(legend.position = c(0.99, 0.99),
+              legend.justification = c("right", "top"),
+              legend.text = element_text(size = 6),
+              legend.title= element_text(size = 8))+
+  annotate("rect", fill = "blue", alpha = 0.1, 
+        xmin = cut_date + .5, xmax = max(df0$Date_reported)+.5,
+        ymin = -Inf, ymax = Inf)
+                
+pprime_chart
+
+#number of tests per day
+ptests <- ggplot(data=df0,aes(x=Date_reported,y=Total_daily_tests))+
+          theme_bw()+
+          geom_point(aes(shape=phase),size=rel(2))+
+          geom_line()+
+          labs(title="Total Daily Tests",
+            subtitle="Baseline Median Daily Tests, dashed line",
+            x="",
+            y="")+
+      geom_hline(yintercept=median(df0$Total_daily_tests[df0$Date_reported <= cut_date]),lty="dashed")+
+      annotate("rect", fill = "blue", alpha = 0.1, 
+        xmin = cut_date + .5, xmax = max(df0$Date_reported)+.5,
+        ymin = -Inf, ymax = Inf)+
+      scale_shape_discrete(na.translate=FALSE)+
+         theme(legend.position = c(0.05, 0.99),
+              legend.justification = c("left", "top"),
+              legend.text = element_text(size = 6),
+              legend.title= element_text(size = 8))
+ 
+ptests
+
+
+
+```
+
+### Note on independence assumption
+
+If there are clusters of positive cases violating the independence assumptions for within day variation, this will tend to lead to 'Criterion 1' signal on the control chart; the effective number of observations is reduced in the presence of clusters, which implies that the limits based on independence will be narrower than is the case.
+
