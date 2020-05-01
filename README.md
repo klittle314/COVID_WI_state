@@ -13,6 +13,8 @@ The file plots the raw data on testing and also shows three control chart option
 
 The WI DHS team proposes to use linear regression to determine changes to their gating measures sufficient to move to more open phase of social interaction.   The control charts are offered as an alternative for analysis.
 
+The [file] 'Notes on criteria for decision making.pdf' outlines issues in the regression approach and describes control chart alternatives.
+
 **Want more information?**  Email [Kevin Little](mailto:klittle@iecodesign.com?subject=[GitHub]%20COVID_WI_state).
 
 
