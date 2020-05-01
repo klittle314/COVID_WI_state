@@ -11,7 +11,7 @@ The WI DHS team proposes to use linear regression to determine changes to their 
 
 The [file](https://github.com/klittle314/COVID_WI_state/blob/master/Notes%20on%20criteria%20for%20decision%20making%2027%20April%202020.pdf) 'Notes on criteria for decision making.pdf' outlines issues in the regression approach and describes control chart alternatives.
 
-If you are familiar with the R language and are able to run RMarkdown files, the Rmarkdown file in this repository the file plots the raw data on Covid-19 testing in Wisconsin and also shows three control chart options to view the percent positive tests. 
+If you are familiar with the R language and are able to run RMarkdown files, the Rmarkdown file in this repository the file plots raw data on Covid-19 testing in Wisconsin and also shows three control chart options to view the percent positive tests. 
 
 The markdown file does not yet automatically access data from the [DHS data webpage](https://data.dhsgis.wi.gov/datasets/covid-19-historical-data-table/data?where=%20(GEO%20%3D%20%27County%27%20OR%20GEO%20%3D%20%27State%27)%20).  
 
