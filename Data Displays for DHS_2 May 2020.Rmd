@@ -9,13 +9,13 @@ output:
 ---
 
 ### Gating Criteria from Wisconsin State DHS:  Lifting Stay at Home Restrictions
-Symptoms 	Downward trajectory of influenza-like illnesses (ILI) reported within a 14-day period. 	Red indicator = no progress
+Symptoms: 	Downward trajectory of influenza-like illnesses (ILI) reported within a 14-day period. 	
 
-Symptoms 	Downward trajectory of COVID-like syndromic cases reported within a 14-day period. 	Red indicator = no progress
+Symptoms: 	Downward trajectory of COVID-like syndromic cases reported within a 14-day period. 	
 
-Cases 	Downward trajectory of positive tests as a percent of total tests within a 14-day period. 	Red indicator = no progress
+Cases: 	Downward trajectory of positive tests as a percent of total tests within a 14-day period. 	
 
-Hospitals  Criteria are currently under development in partnership with Wisconsin healthcare stakeholders.
+Hospitals:  Criteria are currently under development in partnership with Wisconsin healthcare stakeholders.
 
 See [**DHS website**](https://www.dhs.wisconsin.gov/covid-19/prepare.htm) for the criteria and the State 'Badger Bounce Back Plan' [**here**](https://www.dhs.wisconsin.gov/publications/p02653.pdf) that puts the criteria in context.
 
@@ -27,9 +27,9 @@ We recommend daily review of a set of plots
 
 1. raw test data of new positives, new negatives, new total, and per cent of new positive cases
 
-2. slope of per cent new positive cases from 14 day intervals, related to the gating criterion.  Using the proposed criterion of negative slope from a linear regression based on 14-day period, we construct a graph that shows slopes for consecutive 14 day windows. When the upper 95% confidence interval is negative, the trajectory criterion is met.   (There is also the criterion that daily per cent positive tests are at or below 5%.)
+2. slope of per cent new positive cases from 14 day intervals, related to the gating criterion.  Using the proposed criterion of negative slope from a linear regression based on 14-day period, we construct a graph that shows slopes for consecutive 14 day windows. When the upper 95% confidence interval is negative, the trajectory criterion is met. 
 
-3. A control chart of the per cent positive tests to track the per cent positive tests, to reveal signals of special cause(s) in the per cent plot. A control chart that incorporates both within day variation in the per cent positive test and day to day variation in testing encourages DHS decision-makers to understand daily and weekly patterns in the per cent positive test measure.
+3. A control chart of the per cent positive tests to track the per cent positive tests, to reveal signals of special cause(s) in the per cent plot. A control chart that incorporates both within day variation in the per cent positive test and day to day variation in testing encourages DHS decision-makers to understand daily and weekly patterns in the per cent positive test measure.  The control charts show an additional criterion, daily per cent positive tests should be at or below 5%.
 
 
 ### Testing Data:  Plots of Daily Counts
@@ -197,8 +197,8 @@ ptest <- ggplot(data=df_slopes,aes(x=Date_end,y=slope))+
         theme_bw()+
         geom_point()+
         labs(title = 'Slope of Pct Positive Tests: 14 day windows',
-             subtitle = "The slope represents the slope of the linear fit to the 14 days \n ending at the date on the x axis",
-             caption = '95 percent confidence interval limits marked by *')+
+             subtitle = "The slope plotted for each day is the slope from the linear fit of \n pct positive daily tests in a 14 day window ending at the day's date",
+             caption = '95 percent confidence interval limits for each slope marked by *')+
         geom_point(aes(x=Date_end,y=LCI),shape=8)+
         geom_point(aes(x=Date_end,y=UCI),shape=8)+
         geom_hline(yintercept=0) +
