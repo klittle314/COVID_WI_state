@@ -13,10 +13,17 @@ source("global.R")
 shinyServer(function(input, output, session) {
 
     make_plot <- reactive({
+        
         location <- input$choose_location
         
         plot_out <- count_plot(df1_small,location)
         
+    })
+    
+    make_slope_plot <- reactive({
+        location <- input$choose_location
+        
+        slopes_plot_out <- slopes_plot(df1_small,location)
     })
     
     output$count_plot <- renderPlot({
@@ -24,6 +31,12 @@ shinyServer(function(input, output, session) {
         
         print(make_plot())
         
+    })
+    
+    output$slope_plot <- renderPlot({
+        req(make_slope_plot())
+        
+        print(make_slope_plot())
     })
 
 })
