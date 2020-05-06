@@ -22,22 +22,21 @@ if(file.exists(data_file_stateWI)) {
   #GEOID: 55=State of Wisconsin; 55001:55141 for counties (odd numbers only)                                                
   #census tract ids are then of the form 55xxxyyyyyy
   #Missing census tract id will be stated as TRACT N/A so GEOID is assigned as character type for now
-  df0 <- read_csv(data_file_stateWI, col_types=cols(.default = 'i',
+  df_in <- read_csv(data_file_stateWI, col_types=cols(.default = 'i',
                                                     GEOID = 'c',
                                                     GEO = 'c',
                                                     NAME = 'c',
-                                                    LoadDttm = 'd'))
+                                                    LoadDttm = 'c'))
+  #date time format of the file changed on 6 May 2020
+  #records have form "2020/03/15 19:00:00+00".  So strip off +00 and convert to date-time object
+  df_in$Date_time <- as.POSIXct(gsub("\\+00","",df_in$LoadDttm))
+  df_in$Date_reported <- as.Date(df_in$Date_time, tz = "US/Central")
   
 }
 #pull state and county records
-df1 <- df0 %>% filter(GEO %in% c('State','County'))
+df1 <- df_in %>% filter(GEO %in% c('State','County'))
 
-#time records trashed on conversion to CSV
-df1$Date_Time <- df1$LoadDttm/1000
 
-class(df1$Date_Time) <- c('POSIXt','POSIXct')
-
-df1$Date_reported <- as.Date(df1$Date_Time)
 
 #distinguish baseline from most recent 14 days
 cut_date <- max(df1$Date_reported) - 14
@@ -57,3 +56,5 @@ df1_small <- df1_small %>%
   mutate(Total_daily_tests = POSITIVE_daily + NEGATIVE_daily) %>%
   mutate(POS_pct_daily = 100*(POSITIVE_daily/Total_daily_tests)) 
 
+#create a 14 day index for use in slope calculations
+daycode0 <- seq.int(from = 0, to = 13, by = 1)
