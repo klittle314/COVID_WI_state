@@ -75,7 +75,8 @@ shinyUI(navbarPage("Wisconsin Gating Criteria Data",
                 ),
                
                 tabPanel("Control Charts",
-                   helpText("place holder")     
+                   
+                         plotOutput("slope_plot", height="600px")    
                 )
                )  
             )
