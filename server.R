@@ -30,7 +30,7 @@ shinyServer(function(input, output, session) {
     })
     
     make_control_charts <- reactive({
-       # browser()
+      
         location <- input$choose_location
         
         control_charts_out <- control_chart_plots(df1_small,location)
@@ -52,7 +52,7 @@ shinyServer(function(input, output, session) {
         req(make_slope_plot())
      
         if(make_slope_plot()$message == 'Sufficient data to calculate at least one slope') {
-            
+            #do I need print function??
             make_slope_plot()$plot
 
         } 
@@ -65,7 +65,7 @@ shinyServer(function(input, output, session) {
         
         if(make_slope_plot()$message == 'Sufficient data to calculate at least one slope') {
             
-           plotOutput("slope_chart")
+           plotOutput("slope_chart",width="600px")
             
         } else {
             
@@ -80,26 +80,26 @@ shinyServer(function(input, output, session) {
         req(make_control_charts())
         
         if(make_control_charts()$message == paste0("Sufficient data to display control charts: ",
-                                                    min_n_control_charts," records.")) {
+                                                   make_control_charts()$n_records," records.")) {
            
-            make_control_charts()$plot
+            grid.arrange(grobs=make_control_charts()$plot)
             
         } 
     })
     
     output$control_chart_tab <- renderUI({
-         
+        
         req(make_control_charts())
         
         if(make_control_charts()$message == paste0("Sufficient data to display control charts: ",
-                                                   min_n_control_charts," records.")) {
+                                                   make_control_charts()$n_records," records.")) {
             
-            plotOutput("control_chart")
+            plotOutput("control_chart",width="600px",height="800px")
             
         } 
         
         else {
-            
+           
             h5(make_control_charts()$message)
         }
     })
