@@ -32,7 +32,7 @@ count_plot <- function(dfx,location){
       
       p1 <- ggplot(data=dfA,aes(x=Date_reported,y=value))+
         theme_bw()+
-        geom_point(aes(shape=phase))+
+        geom_point(aes(shape=phase),size=rel(2))+
         facet_wrap(~Measure,
                    ncol = 1,
                    scales = 'free_y')+
@@ -158,7 +158,7 @@ slopes_plot <- function(dfA,location) {
 control_chart_plots <- function(dfA,location) {
       
       df1 <- dfA %>% filter(NAME == location)
-      
+    
       #Note that the start_date is specified as of 5/10/2020 as function of pct positive tests  
       
             list_dates <- seq_dates(df1)
@@ -169,6 +169,8 @@ control_chart_plots <- function(dfA,location) {
       
       list_control_charts$plots <- list()
       
+      list_control_charts$n_records <- integer()
+      
       df0 <- df1 %>% filter(Date_reported >= list_dates$start_date)
       
       cut_date <- max(df0$Date_reported) - 14
@@ -178,6 +180,8 @@ control_chart_plots <- function(dfA,location) {
       if(nrow(df0) >= min_n_control_charts){
           list_control_charts$message <- paste0("Sufficient data to display control charts: ",
                                                     nrow(df0)," records.")
+          
+          list_control_charts$n_records <- nrow(df0)
           
           df0$pi <- df0$POS_pct_daily/100
           
@@ -199,7 +203,10 @@ control_chart_plots <- function(dfA,location) {
           df0$pprime_UCL <- p_bar + 3*df0$Laney_sigma
           
           #compute I chart values
-          p_barI <- mean(df0_baseline$pi)  #assumes equal weighting of the Lot proportions
+          #Issue:   is the mean of the chart the unweighted average of the daily pi's or weighted for sample size?
+          #see Laney:  p. 533 who uses the weighted average for the center line of the I chart.  
+          #justification is that the weighted average will have less bias than unweighted average.  We adopt this here.
+          p_barI <- mean(df0_baseline$pi)  #assumes equal weighting of the Lot proportions. In general this will differ from p_bar
           Rpi <- abs(diff(df0_baseline$pi))
           sigma_aver_Rpi <- mean(Rpi)/1.128
           sigma_median_Rpi <- median(Rpi)/0.9554
@@ -216,15 +223,16 @@ control_chart_plots <- function(dfA,location) {
             geom_line(aes(x=Date_reported,y=100*p_LCL),linetype='dashed')+
             geom_line(aes(x=Date_reported,y=100*p_UCL),linetype='dashed')+
             geom_hline(yintercept= 5, colour="blue",lty="dotted")+
-            ylim(0,20)+
+            ylim(0,NA)+
             annotate("rect", fill = "blue", alpha = 0.1, 
                      xmin = cut_date + .5, xmax = max(df0$Date_reported)+.5,
                      ymin = -Inf, ymax = Inf)+
             scale_shape_discrete(na.translate=FALSE)+
-            theme(legend.position = c(0.99, 0.99),
-                  legend.justification = c("right", "top"),
-                  legend.text = element_text(size = 6),
-                  legend.title= element_text(size = 8))
+            theme(legend.position = "none") #+
+            # theme(legend.position = c(0.99, 0.99),
+            #       legend.justification = c("right", "top"),
+            #       legend.text = element_text(size = 6),
+            #       legend.title= element_text(size = 8))
           
           #pchart
           
@@ -237,25 +245,27 @@ control_chart_plots <- function(dfA,location) {
                  x="",
                  y="%",
                  subtitle="Limits based between day variation ignoring test counts; baseline period unshaded") +
+            #Laney suggests the center line will be 
             geom_hline(yintercept=100*p_barI)+
             geom_hline(yintercept= 5, colour="blue",lty="dotted")+
-            ylim(0,20)+
+            ylim(0,NA)+
             annotate("rect", fill = "blue", alpha = 0.1, 
                      xmin = cut_date + .5, xmax = max(df0$Date_reported)+.5,
                      ymin = -Inf, ymax = Inf)+
             scale_shape_discrete(na.translate=FALSE)+
-            theme(legend.position = c(0.99, 0.99),
-                  legend.justification = c("right", "top"),
-                  legend.text = element_text(size = 6),
-                  legend.title= element_text(size = 8))
+            # theme(legend.position = c(0.99, 0.99),
+            #       legend.justification = c("right", "top"),
+            #       legend.text = element_text(size = 6),
+            #       legend.title= element_text(size = 8))
+            theme(legend.position = "none")
           
-          ichart_Median <- ichart+ geom_line(aes(x=Date_reported,y=100*(p_barI - 3*sigma_median_Rpi)),linetype='dashed')+
-            geom_line(aes(x=Date_reported,y=100*(p_barI + 3*sigma_median_Rpi)),linetype='dashed')+
+          ichart_Median <- ichart+ geom_line(aes(x=Date_reported,y=100*(p_bar - 3*sigma_median_Rpi)),linetype='dashed')+
+            geom_line(aes(x=Date_reported,y=100*(p_bar + 3*sigma_median_Rpi)),linetype='dashed')+
             labs(caption="Limits based on median moving range")
           #ichart_Median
           
-          ichart_Mean <- ichart+ geom_line(aes(x=Date_reported,y=100*(p_barI - 3*sigma_aver_Rpi)),linetype='dashed')+
-            geom_line(aes(x=Date_reported,y=100*(p_barI + 3*sigma_aver_Rpi)),linetype='dashed') +
+          ichart_Mean <- ichart+ geom_line(aes(x=Date_reported,y=100*(p_bar - 3*sigma_aver_Rpi)),linetype='dashed')+
+            geom_line(aes(x=Date_reported,y=100*(p_bar + 3*sigma_aver_Rpi)),linetype='dashed') +
             labs(caption="Limits use average moving range; option is to use median moving range")
           #ichart_Mean
           
@@ -272,12 +282,13 @@ control_chart_plots <- function(dfA,location) {
             geom_line(aes(x=Date_reported,y=100*pprime_LCL),linetype='dashed')+
             geom_line(aes(x=Date_reported,y=100*pprime_UCL),linetype='dashed')+
             geom_hline(yintercept= 5, colour="blue",lty="dotted")+
-            ylim(0,20)+
+            ylim(0,NA)+
             scale_shape_discrete(na.translate=FALSE)+
-            theme(legend.position = c(0.99, 0.99),
-                  legend.justification = c("right", "top"),
-                  legend.text = element_text(size = 6),
-                  legend.title= element_text(size = 8))+
+            theme(legend.position = "none")+
+            # theme(legend.position = c(0.99, 0.99),
+            #       legend.justification = c("right", "top"),
+            #       legend.text = element_text(size = 6),
+            #       legend.title= element_text(size = 8))+
             annotate("rect", fill = "blue", alpha = 0.1, 
                      xmin = cut_date + .5, xmax = max(df0$Date_reported)+.5,
                      ymin = -Inf, ymax = Inf)
@@ -297,18 +308,17 @@ control_chart_plots <- function(dfA,location) {
             annotate("rect", fill = "blue", alpha = 0.1, 
                      xmin = cut_date + .5, xmax = max(df0$Date_reported)+.5,
                      ymin = -Inf, ymax = Inf)+
-            scale_shape_discrete(na.translate=FALSE)+
-            theme(legend.position = c(0.05, 0.99),
-                  legend.justification = c("left", "top"),
-                  legend.text = element_text(size = 6),
-                  legend.title= element_text(size = 8))
+            scale_shape_discrete(na.translate=FALSE) #+
+            # theme(legend.position = c(0.05, 0.99),
+            #       legend.justification = c("left", "top"),
+            #       legend.text = element_text(size = 6),
+            #       legend.title= element_text(size = 8))
           
           #ptests
+         
+          list_control_charts$plot  <- list(pchart, ichart_Mean, pprime_chart)
           
-          ccharts_out <- grid.arrange(pchart, ichart_Mean, pprime_chart)
-          
-          list_control_charts$plot <- ccharts_out
-          
-          return(list_control_charts)
       }
+      
+      return(list_control_charts)
 }
