@@ -285,7 +285,7 @@ pchart <- ggplot(data=df0,aes(x=Date_reported,y=100*pi)) +
 
 pchart
 
-#ichart
+#ichart#Change to use p-bar, which is WEIGHTED, not the ordinary sum of the pi in baseline (unweighted) 5-11-20202
 ichart <-ggplot(data=df0,aes(x=Date_reported,y=100*pi)) +
   theme_bw()+
   geom_point(aes(shape=phase),size=rel(2))+
@@ -294,7 +294,7 @@ ichart <-ggplot(data=df0,aes(x=Date_reported,y=100*pi)) +
        x="",
        y="%",
        subtitle="Limits based between day variation ignoring test counts; baseline period unshaded") +
-  geom_hline(yintercept=100*p_barI)+
+  geom_hline(yintercept=100*p_bar)+
   geom_hline(yintercept= 5, colour="blue",lty="dotted")+
   ylim(0,20)+
   annotate("rect", fill = "blue", alpha = 0.1, 

@@ -53,7 +53,7 @@ shinyServer(function(input, output, session) {
      
         if(make_slope_plot()$message == 'Sufficient data to calculate at least one slope') {
             
-            print(make_slope_plot()$plot)
+            make_slope_plot()$plot
 
         } 
         
@@ -82,7 +82,7 @@ shinyServer(function(input, output, session) {
         if(make_control_charts()$message == paste0("Sufficient data to display control charts: ",
                                                     min_n_control_charts," records.")) {
            
-            print(make_control_charts()$plot)
+            make_control_charts()$plot
             
         } 
     })
@@ -94,7 +94,7 @@ shinyServer(function(input, output, session) {
         if(make_control_charts()$message == paste0("Sufficient data to display control charts: ",
                                                    min_n_control_charts," records.")) {
             
-            plotOutput("control_charts")
+            plotOutput("control_chart")
             
         } 
         
