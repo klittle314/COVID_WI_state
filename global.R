@@ -65,8 +65,17 @@ df1_small <- df1_small %>%
 #create a 14 day index for use in slope calculations
 daycode0 <- seq.int(from = 0, to = 13, by = 1)
 
+
+#minimum number of positive tests used to determine whether or not to make the slope chart
+min_n_pos_tests_slope_chart <- 100
+
 #minimum records for control charts used to determine whether or not attempt to make control chart
 min_n_control_charts <- 10
+
+#minimum number of positive tests used to determine whether or not attempt to make control chart
+min_n_pos_tests <- 100
+
+
 
 #geofacet grid
 mygrid <- data.frame(
@@ -76,7 +85,12 @@ mygrid <- data.frame(
   col = c(3, 4, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 5, 6, 7, 8, 9, 10, 11, 5, 6, 7, 8, 9, 10, 11, 5, 6, 7, 8, 9, 10, 11),
   stringsAsFactors = FALSE
 )
+
+mygrid1 <- mygrid
+
+mygrid1$name <- gsub(" County","",mygrid1$name)
+
 # grid_design()
-geofacet::grid_preview(mygrid)
+#geofacet::grid_preview(mygrid)
 # geofacet::grid_submit(mygrid)
 
