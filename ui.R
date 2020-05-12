@@ -41,7 +41,7 @@ shinyUI(navbarPage("Wisconsin Gating Criteria Data",
             span("Created by "),
             a("Kevin Little", href = "mailto:klittle@iecodesign.com"),
             
-            span("5 May 2020"),
+            span("updated 11 May 2020  9:00 am CDT"),
             
             br(), br(),
             
