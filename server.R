@@ -33,7 +33,7 @@ shinyServer(function(input, output, session) {
       
         location <- input$choose_location
         
-        control_charts_out <- control_chart_plots(df1_small,location)
+        control_charts_out <- control_pchart_plots(df1_small,location)
     })
     
    ####################Render the plot objects
