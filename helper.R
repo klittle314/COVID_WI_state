@@ -116,13 +116,16 @@ slopes_plot <- function(dfA,location) {
   df1 <- dfA %>% filter(NAME == location)
   list_slopes <- list()
   
-  list_slopes$message <- "Insuffficient data to calculate slopes"
+  list_slopes$message <- "Insuffficient data to calculate slopes chart"
   
   list_slopes$plot <- list()
   
   list_dates <- seq_dates(df1)
   
-  if(length(list_dates$date_seq)>0) {
+  #compute how many positive tests have been seen in the series; we use an arbitrary cut point of 100 on 5-10-2020
+  sum_pos_tests <- sum(df1$POSITIVE_daily, na.rm=TRUE)
+  
+  if(length(list_dates$date_seq)>0 & sum_pos_tests >= min_n_pos_tests_slope_chart) {
   
       list_df_slope_pars <- lapply(list_dates$date_seq,get_slope_pars,dfx = df1, daycode = daycode0)
   
@@ -147,15 +150,15 @@ slopes_plot <- function(dfA,location) {
         
         list_slopes$plot <- p_slopes
   }
-  
+  #browser()
   return(list_slopes)
  
 }
 
 
-#function to create the control charts.  Function as of 5/10/2020 is specific to % positive daily tests parameter.
+#function to create the per cent control charts.  Function as of 5/10/2020 is specific to % positive daily tests parameter.
 
-control_chart_plots <- function(dfA,location) {
+control_pchart_plots <- function(dfA,location) {
       
       df1 <- dfA %>% filter(NAME == location)
     
@@ -173,11 +176,14 @@ control_chart_plots <- function(dfA,location) {
       
       df0 <- df1 %>% filter(Date_reported >= list_dates$start_date)
       
+      #compute how many positive tests have been seen in the series; we use an arbitrary cut point of 100 on 5-10-2020
+      sum_pos_tests <- sum(df0$POSITIVE_daily, na.rm=TRUE)
+      
       cut_date <- max(df0$Date_reported) - 14
       
       df0$phase <- ifelse(df0$Date_reported <= cut_date,"baseline","last 14 days")
       
-      if(nrow(df0) >= min_n_control_charts){
+      if(nrow(df0) >= min_n_control_charts & sum_pos_tests >= min_n_pos_tests){
           list_control_charts$message <- paste0("Sufficient data to display control charts: ",
                                                     nrow(df0)," records.")
           
