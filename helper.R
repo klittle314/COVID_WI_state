@@ -113,16 +113,20 @@ get_slope_pars <- function(dfx,date_start,daycode) {
 
 #function to create the slopes plot
 slopes_plot <- function(dfA,location) {
-  df1 <- dfA %>% filter(NAME == location)
+  
   list_slopes <- list()
   
   list_slopes$message <- "Insuffficient data to calculate slopes chart"
   
   list_slopes$plot <- list()
   
+if(!(location %in% counties_small_counts)){
+  df1 <- dfA %>% filter(NAME == location)
+  
   list_dates <- seq_dates(df1)
   
   #compute how many positive tests have been seen in the series; we use an arbitrary cut point of 100 on 5-10-2020
+  #also set aside the counties with low daily positive counts
   sum_pos_tests <- sum(df1$POSITIVE_daily, na.rm=TRUE)
   
   if(length(list_dates$date_seq)>0 & sum_pos_tests >= min_n_pos_tests_slope_chart) {
@@ -151,28 +155,32 @@ slopes_plot <- function(dfA,location) {
         list_slopes$plot <- p_slopes
   }
   #browser()
-  return(list_slopes)
- 
+ }  
+ return(list_slopes)
 }
 
 
 #function to create the per cent control charts.  Function as of 5/10/2020 is specific to % positive daily tests parameter.
 
-control_pchart_plots <- function(dfA,location) {
+p_control_chart_plots <- function(dfA,location, date_calc) {
       
-      df1 <- dfA %>% filter(NAME == location)
-    
-      #Note that the start_date is specified as of 5/10/2020 as function of pct positive tests  
       
-            list_dates <- seq_dates(df1)
       
       list_control_charts <- list()
       
-      list_control_charts$message <- "Insuffficient data to create control charts"
+      list_control_charts$message <- "Insuffficient data to create % control charts"
       
       list_control_charts$plots <- list()
       
       list_control_charts$n_records <- integer()
+      
+      
+  if(!(location %in% counties_small_counts)) {  
+      df1 <- dfA %>% filter(NAME == location)
+      
+      #Note that the start_date is specified as of 5/10/2020 as function of pct positive tests  
+      
+      list_dates <- seq_dates(df1)
       
       df0 <- df1 %>% filter(Date_reported >= list_dates$start_date)
       
@@ -191,7 +199,7 @@ control_pchart_plots <- function(dfA,location) {
           
           df0$pi <- df0$POS_pct_daily/100
           
-          df0_baseline <- df0 %>% filter(Date_reported <= max(Date_reported) - 14)
+          df0_baseline <- df0 %>% filter(Date_reported <= date_calc)
           
           #compute binomial limits
           df0$qi <- 1 - df0$pi
@@ -202,7 +210,7 @@ control_pchart_plots <- function(dfA,location) {
           
           #compute z scores and assess variation in z scores
           df0$zi <- (df0$pi - p_bar)/df0$sigma_pi
-          Rzi <- abs(diff(df0$zi[df0$Date_reported <= max(df0$Date_reported)-14]))
+          Rzi <- abs(diff(df0$zi[df0$Date_reported <= date_calc]))
           sigma_zi <- mean(Rzi)/1.128
           df0$Laney_sigma <- df0$sigma_pi*sigma_zi
           df0$pprime_LCL <- p_bar - 3*df0$Laney_sigma
@@ -224,7 +232,7 @@ control_pchart_plots <- function(dfA,location) {
             labs(title="p control chart for Pct Positive tests",
                  x=" ",
                  y="%",
-                 subtitle="Limits based on binomial variation, scaled by daily n; baseline period unshaded") +
+                 subtitle=paste0("Limits based on binomial variation, scaled by daily n for values before ", as.character(date_calc))) +
             geom_hline(yintercept=100*p_bar)+
             geom_line(aes(x=Date_reported,y=100*p_LCL),linetype='dashed')+
             geom_line(aes(x=Date_reported,y=100*p_UCL),linetype='dashed')+
@@ -251,8 +259,8 @@ control_pchart_plots <- function(dfA,location) {
                  x="",
                  y="%",
                  subtitle="Limits based between day variation ignoring test counts; baseline period unshaded") +
-            #Laney suggests the center line will be 
-            geom_hline(yintercept=100*p_barI)+
+            #Laney suggests the center line will be p_bar not p_barI
+            geom_hline(yintercept=100*p_bar)+
             geom_hline(yintercept= 5, colour="blue",lty="dotted")+
             ylim(0,NA)+
             annotate("rect", fill = "blue", alpha = 0.1, 
@@ -310,7 +318,7 @@ control_pchart_plots <- function(dfA,location) {
                  subtitle="Baseline Median Daily Tests, dashed line",
                  x="",
                  y="")+
-            geom_hline(yintercept=median(df0$Total_daily_tests[df0$Date_reported <= cut_date]),lty="dashed")+
+            geom_hline(yintercept=median(df0$Total_daily_tests[df0$Date_reported <= date_calc]),lty="dashed")+
             annotate("rect", fill = "blue", alpha = 0.1, 
                      xmin = cut_date + .5, xmax = max(df0$Date_reported)+.5,
                      ymin = -Inf, ymax = Inf)+
@@ -325,6 +333,46 @@ control_pchart_plots <- function(dfA,location) {
           list_control_charts$plot  <- list(pchart, ichart_Mean, pprime_chart)
           
       }
-      
-      return(list_control_charts)
+  }  
+  return(list_control_charts)
+}
+
+#function to create a c-chart for counties with low counts
+c_control_chart_plot <- function(dfA,location,date_calc) {
+  #Date_limit_small_counts <- as.Date("2020-05-11") will serve as initial cut point for control limits
+  #requre at least 10 positive cases else return message 'insufficient data to make control chart'
+  
+  df0 <- dfA %>% filter(NAME == location)
+  
+  df0_baseline <- df0 %>% filter(Date_reported <= date_calc)
+  
+  cchart_mean <- mean(df0_baseline$POSITIVE_daily)
+  
+  cchart_UCL <- cchart_mean+ 3*sqrt(cchart_mean)
+  
+  cchart_LCL <- max(0,cchart_mean - 3*sqrt(cchart_mean), na.rm=TRUE)
+  
+  df0$phase <- ifelse(df0$Date_reported <= date_calc,"baseline","post-baseline")
+  
+  p_c_chart <- ggplot(data=df0,aes(x=Date_reported, y=POSITIVE_daily))+
+                theme_bw()+
+                geom_point(aes(shape=phase),size=rel(3))+
+                geom_line()+
+                labs(title = paste0('c-control chart of daily positive cases for ', location,' County'),
+                     subtitle = paste0("mean and control limit(s) based on baseline data on or before ", as.character(date_calc)))+
+                ylab("")+
+                xlab("Date Reported")+
+                geom_hline(yintercept = cchart_mean)+
+                geom_hline(yintercept = cchart_UCL, linetype = "dashed")+
+                annotate("rect", fill = "grey", alpha = 0.1, 
+                         xmin = Date_limit_small_counts + .5, xmax = max(dfA$Date_reported)+.5,
+                         ymin = -Inf, ymax = Inf)+
+                scale_shape_discrete(na.translate=FALSE)+
+                theme(legend.position = c(0.1, 0.99),
+                      legend.justification = c("right", "top"),
+                      legend.text = element_text(size = 6),
+                      legend.title= element_text(size = 8))
+  
+ return(p_c_chart)
+  
 }
