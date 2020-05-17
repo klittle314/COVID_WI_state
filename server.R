@@ -29,20 +29,31 @@ shinyServer(function(input, output, session) {
         slopes_plot_out <- slopes_plot(df1_small,location)
     })
     
-    make_control_charts <- reactive({
+    make_pcontrol_charts <- reactive({
       
         location <- input$choose_location
         
-        control_charts_out <- control_pchart_plots(df1_small,location)
+        date_end <- input$date_fix_control_chart_limits
+        
+        control_charts_out <- p_control_chart_plots(df1_small,location,date_end)
     })
     
+    make_ccontrol_chart <- reactive({
+        
+        location <- input$choose_location_low_count
+        
+        date_end <- input$date_fix_control_chart_limits
+        #browser()
+        control_chart_out <- c_control_chart_plot(df1_small,location,date_end)
+    })
    ####################Render the plot objects
      
    ################Count Plots###########################
     output$count_plot <- renderPlot({
         req(make_plot())
         
-        print(make_plot())
+        #print(make_plot())
+        make_plot()
         
     })
     
@@ -75,34 +86,42 @@ shinyServer(function(input, output, session) {
      })
     
     ###############Control Charts###########################
-    output$control_chart <- renderPlot({
+    output$pcontrol_chart <- renderPlot({
         
-        req(make_control_charts())
+        req(make_pcontrol_charts())
         
-        if(make_control_charts()$message == paste0("Sufficient data to display control charts: ",
-                                                   make_control_charts()$n_records," records.")) {
+        if(make_pcontrol_charts()$message == paste0("Sufficient data to display control charts: ",
+                                                   make_pcontrol_charts()$n_records," records.")) {
            
-            grid.arrange(grobs=make_control_charts()$plot)
+            grid.arrange(grobs=make_pcontrol_charts()$plot)
             
         } 
     })
     
-    output$control_chart_tab <- renderUI({
+    output$p_control_chart_tab <- renderUI({
         
-        req(make_control_charts())
+        req(make_pcontrol_charts())
         
-        if(make_control_charts()$message == paste0("Sufficient data to display control charts: ",
-                                                   make_control_charts()$n_records," records.")) {
+        if(make_pcontrol_charts()$message == paste0("Sufficient data to display control charts: ",
+                                                   make_pcontrol_charts()$n_records," records.")) {
             
-            plotOutput("control_chart",width="600px",height="800px")
+            plotOutput("pcontrol_chart",width="600px",height="800px")
             
         } 
         
         else {
            
-            h5(make_control_charts()$message)
+            h5(make_pcontrol_charts()$message)
         }
     })
+    
+    output$ccontrol_chart <- renderPlot({
+        #browser()
+        req(make_ccontrol_chart())
+        #browser()
+        print(make_ccontrol_chart())
+    })
+    
     
     ######################End of chart rendering##############
 
