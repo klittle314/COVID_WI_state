@@ -59,11 +59,25 @@ shinyUI(navbarPage("Wisconsin Gating Criteria Data",
             sidebarPanel(
                 selectInput(
                     inputId  = 'choose_location',
-                    label    = h5("Choose state or county"),
+                    label    = h5("Choose state or county for main plots"),
                     choices  = unique(df1_small$NAME),
                     selected = "WI",
-                    width    = "100%")   
+                    width    = "100%"),
+                
+                selectInput(
+                    inputId  = 'choose_location_low_count',
+                    label    = h5('choose county with low count'),
+                    selected = "Chippewa",
+                    choices  = counties_small_counts,
+                    width    = "100%"),
+                
+                dateInput(
+                    inputId  = 'date_fix_control_chart_limits',
+                    label    = h5('set date for last day for control chart calcs'),
+                    value    = cut_date
+                  )
                 ),
+            
            
 
             # Show a plot of the generated distribution
@@ -71,7 +85,7 @@ shinyUI(navbarPage("Wisconsin Gating Criteria Data",
                tabsetPanel(id = 'display-tab', type = 'tabs',
                 tabPanel("Count Plots",
                 
-                         plotOutput("count_plot", height="600px")
+                         plotOutput('count_plot', height="600px")
                 ),
                
                 # tabPanel("Gating Slope Check Plot",
@@ -83,12 +97,18 @@ shinyUI(navbarPage("Wisconsin Gating Criteria Data",
                          uiOutput('slope_chart_tab')
                 ),
                 
-                tabPanel("Control Charts",
+                tabPanel("% Control Charts",
                          
-                         uiOutput('control_chart_tab'))
-               )  
+                         uiOutput('p_control_chart_tab')
+               ),
+               
+               tabPanel("c-control charts",
+                        
+                        plotOutput('ccontrol_chart', height="400px")
             )
-        ) 
-   )  
- )
+         ) 
+        )  
+       )
+     )  
+    )
 )
