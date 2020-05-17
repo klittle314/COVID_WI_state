@@ -75,8 +75,19 @@ min_n_control_charts <- 10
 #minimum number of positive tests used to determine whether or not attempt to make control chart
 min_n_pos_tests <- 100
 
+#maximum number of daily positive tests to indicate a c-chart for small counts
+POS_daily_max_limit <- 10
 
+#cut point for reference of 'small' counts
+Date_limit_small_counts <- as.Date("2020-05-11")
 
+#name list of counties with small counts
+df1_small_gate1 <- df1_small %>% filter(Date_reported <= Date_limit_small_counts) %>%
+                      group_by(NAME) %>% mutate(max_POS_Daily = max(POSITIVE_daily, na.rm=TRUE)) %>%
+                      filter(max_POS_Daily <= POS_daily_max_limit)
+
+counties_small_counts <- unique(df1_small_gate1$NAME)
+    
 #geofacet grid
 mygrid <- data.frame(
   name = c("Douglas County", "Bayfield County", "Washburn County", "Sawyer County", "Ashland County", "Iron County", "Oneida County", "Vilas County", "Polk County", "Burnett County", "Barron County", "Chippewa County", "Rusk County", "Price County", "Lincoln County", "Langlade County", "Forest County", "Florence County", "Marinette County", "St. Croix County", "Dunn County", "Eau Claire County", "Clark County", "Taylor County", "Marathon County", "Shawano County", "Menominee County", "Oconto County", "Calumet County", "Door County", "Pierce County", "Pepin County", "Trempealeau County", "Jackson County", "Wood County", "Portage County", "Waushara County", "Waupaca County", "Outagamie County", "Brown County", "Kewaunee County", "Buffalo County", "La Crosse County", "Monroe County", "Juneau County", "Adams County", "Green Lake County", "Winnebago County", "Washington County", "Sheboygan County", "Manitowoc County", "Vernon County", "Richland County", "Columbia County", "Marquette County", "Dodge County", "Fond du Lac County", "Ozaukee County", "Crawford County", "Iowa County", "Sauk County", "Dane County", "Jefferson County", "Waukesha County", "Milwaukee County", "Grant County", "Lafayette County", "Green County", "Rock County", "Walworth County", "Kenosha County", "Racine County"),
