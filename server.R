@@ -18,7 +18,9 @@ shinyServer(function(input, output, session) {
         
         location <- input$choose_location
         
-        plot_out <- count_plot(df1_small,location)
+        date_calc <- input$date_fix_control_chart_limits
+        #browser()
+        plot_out <- count_plot(df1_small,location,date_calc)
         
     })
     
@@ -52,8 +54,8 @@ shinyServer(function(input, output, session) {
     output$count_plot <- renderPlot({
         req(make_plot())
         
-        #print(make_plot())
-        make_plot()
+        print(make_plot())
+        #make_plot()
         
     })
     
