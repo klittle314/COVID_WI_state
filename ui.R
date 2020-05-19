@@ -73,7 +73,7 @@ shinyUI(navbarPage("Wisconsin Gating Criteria Data",
                 
                 dateInput(
                     inputId  = 'date_fix_control_chart_limits',
-                    label    = h5('set date for last day for control chart calcs'),
+                    label    = h5('Set date for last day of baseline; default is 15 days before end of series.'),
                     value    = cut_date
                   )
                 ),
