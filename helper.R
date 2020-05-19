@@ -8,12 +8,12 @@ make_vec <- function(x) {
 
 #make basic count plot
 
-count_plot <- function(dfx,location){
+count_plot <- function(dfx,location,date_calc){
       #distinguish baseline from most recent 14 days
       dfx <- dfx %>% filter(NAME == location)
-      cut_date <- max(dfx$Date_reported) - 14
+      #cut_date <- max(dfx$Date_reported) - 14
       
-      dfx$phase <- ifelse(dfx$Date_reported <= cut_date,"baseline","last 14 days")
+      dfx$phase <- ifelse(dfx$Date_reported <= date_calc,"baseline","post-baseline")
      
       dfx_longer <- dfx %>% 
         select(GEO,NAME,Date_reported,POSITIVE_daily,NEGATIVE_daily,Total_daily_tests,POS_pct_daily,phase) %>%
@@ -37,7 +37,7 @@ count_plot <- function(dfx,location){
                    ncol = 1,
                    scales = 'free_y')+
         labs(title=paste0("Test counts for ", location),
-             subtitle="Dashed lines are medians for baseline records in each series")+
+             subtitle=paste0("Dashed lines are medians for baseline period in each series, ending at ",as.character(date_calc)))+
              
         geom_hline(aes(yintercept=med_A1),data=df.hlines,lty=2)+
         
@@ -164,8 +164,6 @@ if(!(location %in% counties_small_counts)){
 
 p_control_chart_plots <- function(dfA,location, date_calc) {
       
-      
-      
       list_control_charts <- list()
       
       list_control_charts$message <- "Insuffficient data to create % control charts"
@@ -187,9 +185,9 @@ p_control_chart_plots <- function(dfA,location, date_calc) {
       #compute how many positive tests have been seen in the series; we use an arbitrary cut point of 100 on 5-10-2020
       sum_pos_tests <- sum(df0$POSITIVE_daily, na.rm=TRUE)
       
-      cut_date <- max(df0$Date_reported) - 14
+      #cut_date <- max(df0$Date_reported) - 14
       
-      df0$phase <- ifelse(df0$Date_reported <= cut_date,"baseline","last 14 days")
+      df0$phase <- ifelse(df0$Date_reported <= date_calc,"baseline","post-baseline")
       
       if(nrow(df0) >= min_n_control_charts & sum_pos_tests >= min_n_pos_tests){
           list_control_charts$message <- paste0("Sufficient data to display control charts: ",
@@ -348,7 +346,7 @@ c_control_chart_plot <- function(dfA,location,date_calc) {
   
   cchart_mean <- mean(df0_baseline$POSITIVE_daily)
   
-  cchart_UCL <- cchart_mean+ 3*sqrt(cchart_mean)
+  cchart_UCL <- cchart_mean + 3*sqrt(cchart_mean)
   
   cchart_LCL <- max(0,cchart_mean - 3*sqrt(cchart_mean), na.rm=TRUE)
   
