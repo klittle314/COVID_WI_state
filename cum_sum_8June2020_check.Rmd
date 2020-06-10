@@ -1,0 +1,163 @@
+---
+title: "Check_June 8 2020 trajectory arithmetic"
+author: "Kevin Little,Ph.D., Informing Ecological Design, LLC"
+date: '`r format(Sys.time(), "%B %d, %Y")`'
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+#set up the file, filepath and data directory
+library(readr)
+library(tidyverse)
+library(GGally)
+library(gridExtra)
+library(data.table)
+library(knitr)
+
+data_file_stateWI <- paste0('data/WI_state_data_', as.character(Sys.Date()), '.csv')
+
+data_csv <- "https://opendata.arcgis.com/datasets/b913e9591eae4912b33dc5b4e88646c5_10.csv"
+
+ifelse(!dir.exists('data'), dir.create('data'), FALSE)
+
+if(!file.exists(data_file_stateWI)) {
+  data1 <- try(fread(data_csv))
+  write_csv(data1, path=data_file_stateWI)
+}
+
+if(file.exists(data_file_stateWI)) {
+  #GEOID is a state, county and census tract code
+  #GEOID: 55=State of Wisconsin; 55001:55141 for counties (odd numbers only)                                                
+  #census tract ids are then of the form 55xxxyyyyyy
+  #Missing census tract id will be stated as TRACT N/A so GEOID is assigned as character type for now
+  df_in <- read_csv(data_file_stateWI, col_types=cols(.default = 'i',
+                                                    GEOID = 'c',
+                                                    GEO = 'c',
+                                                    NAME = 'c',
+                                                    LoadDttm = 'c'))
+  #date time format of the file changed on 6 May 2020
+  #records have form "2020/03/15 19:00:00+00".  So strip off +00 and convert to date-time object
+  df_in$Date_time <- as.POSIXct(gsub("\\+00","",df_in$LoadDttm))
+  df_in$Date_reported <- as.Date(df_in$Date_time, tz = "US/Central")
+  
+}
+#pull state and county records
+df1 <- df_in %>% filter(GEO %in% c('State','County'))
+
+```
+
+## Check calculations
+
+Attempt to reproduce calculations in memo **County-Level Badger Bounce Back Indicators Based on Count Time Series: Trajectory** by Jeffrey Bond, Carl Frederick, Ousmane Diallo, and the OHI COVID-19 Surveillance Team, June 8, 2020
+
+
+```{r death_example, echo=FALSE}
+df_WI <- df1 %>% filter(GEO == "State")
+
+df_WI_small <- df_WI %>% select(GEOID,GEO,NAME,Date_reported,NEGATIVE,POSITIVE,DEATHS)
+#Error in Negative Series for State
+df_WI_small$NEGATIVE[df_WI_small$Date_reported == as.Date("2020-03-29")] <- 15856
+df_WI_small$NEGATIVE[df_WI_small$Date_reported == as.Date("2020-03-30")] <- 16550
+
+
+# function to make differenced series correct with initial value
+make_vec <- function(x) {
+  x_out <- x -lag(x)
+  x_out[1] <- x[1]
+  return(x_out)
+}
+
+df_WI_small <- df_WI_small %>%
+  mutate(DEATHS_daily  = make_vec(DEATHS)) %>% 
+  mutate(POSITIVE_daily = make_vec(POSITIVE)) %>%
+  mutate(NEGATIVE_daily = make_vec(NEGATIVE)) %>%
+  #issue is that counties early in series do not have negative tests
+  mutate(Total_daily_tests = POSITIVE_daily + NEGATIVE_daily) %>%
+  mutate(POS_pct_daily = 100*(POSITIVE_daily/Total_daily_tests)) 
+
+#make weekly bin example
+
+n_use <- nrow(df_WI_small)
+
+df_WI_small  <- df_WI_small %>% 
+                mutate(seq_day = seq(from=1, to=n_use)) %>% 
+                mutate(week_ID = (seq_day - 1) %/% 7 + 1) %>% 
+                mutate(week_day = weekdays(Date_reported,abbreviate=TRUE))  
+               
+  
+df_WI_small_week <-   df_WI_small %>%
+                      group_by(week_ID) %>% 
+                      summarise(deaths_week = sum(DEATHS_daily))
+
+df_WI_small_week_complete <- df_WI_small_week[1:12,]
+
+dfz <- df_WI_small_week_complete
+
+dfz$week_date_back <- seq.Date(from=as.Date("2020-03-23"),to=as.Date("2020-06-08"),by = 7)
+```
+
+## Plot of deaths close but doesn't match memo plot exactly
+
+Plot is close but not identical to memo's plot of deaths.   Close enough to go to next step.
+
+```{r plot_deaths, echo=FALSE}
+weeks <- dfz$week_date_back
+
+
+p0 <- ggplot(data=dfz,aes(x=week_date_back,y=deaths_week))+
+        theme_bw()+
+        geom_point()+
+        labs(title="Deaths per week")+
+        scale_x_date(breaks=weeks, date_labels ="%m-%d-%Y")+
+        theme(axis.text.x = element_text(angle=45, hjust=1,vjust=1))+
+        xlab("")+
+        ylab("Count")
+p0
+```
+
+## Calculation of reverse cum statistic does not agree with memo?
+Quick and dirty calculation of death statistics not close to the plot in Figure 3 in the memo
+
+```{r calc_stat}
+
+max_row <- nrow(dfz)
+current_count <- dfz$deaths_week[max_row]
+
+print(paste0("Last full week dated ",as.character(dfz$week_date_back[max_row]),":", current_count, " deaths"))
+
+#function used to calculate reverse sums
+JB_stat <- function(k,df){
+  vec1 <- df$deaths_week[c((max_row - k):(max_row - 1))]
+  cumsum  <-sum(vec1)
+}
+
+dfz1 <- dfz[1:(max_row-1),]
+
+#now reverse the vector to line up with the weeks correctly
+stat_vec <- rev(unlist(lapply(1:nrow(dfz1),JB_stat,df=dfz1)))
+
+dfz1$SW <- stat_vec
+
+#now calculate the statistic:  take the reverse cum sum, divide by the reverse week count and subtract the count of the last full week in the data series
+dfz1 <- dfz1 %>% mutate(stat_JB = SW/(max_row - week_ID) - current_count)
+
+knitr::kable(dfz1)
+
+p1 <- ggplot(data=dfz1,aes(y=stat_JB,x=week_date_back))+
+        theme_bw()+
+        geom_point()+
+        labs(title="Reverse cum stat plot, test 1")+
+        xlab("Week ending date")+
+        ylab("Deviations of reverse cusum \n from max week count")+
+        scale_x_date(breaks=weeks, date_labels ="%m-%d-%Y")+
+        theme(axis.text.x = element_text(angle=45, hjust=1,vjust=1))
+       
+
+p1
+
+#Scale to limits shown in Figure 3
+
+p1 + ylim(-300,200)
+```
