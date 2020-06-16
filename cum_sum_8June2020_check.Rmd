@@ -15,6 +15,9 @@ library(GGally)
 library(gridExtra)
 library(data.table)
 library(knitr)
+library(tictoc)
+library(htmlTable)
+source("helperCusum.R")
 
 data_file_stateWI <- paste0('data/WI_state_data_', as.character(Sys.Date()), '.csv')
 
@@ -54,13 +57,15 @@ Attempt to reproduce calculations in memo **County-Level Badger Bounce Back Indi
 
 
 ```{r death_example, echo=FALSE}
-df_WI <- df1 %>% filter(GEO == "State")
+location <- "WI"
+df_A <- df1 %>% filter(NAME == location)
 
-df_WI_small <- df_WI %>% select(GEOID,GEO,NAME,Date_reported,NEGATIVE,POSITIVE,DEATHS)
+df_A_small <- df_A %>% select(GEOID,GEO,NAME,Date_reported,NEGATIVE,POSITIVE,DEATHS)
 #Error in Negative Series for State
-df_WI_small$NEGATIVE[df_WI_small$Date_reported == as.Date("2020-03-29")] <- 15856
-df_WI_small$NEGATIVE[df_WI_small$Date_reported == as.Date("2020-03-30")] <- 16550
-
+if(location == "WI") {
+  df_A_small$NEGATIVE[df_A_small$Date_reported == as.Date("2020-03-29")] <- 15856
+  df_A_small$NEGATIVE[df_A_small$Date_reported == as.Date("2020-03-30")] <- 16550
+}
 
 # function to make differenced series correct with initial value
 make_vec <- function(x) {
@@ -69,7 +74,7 @@ make_vec <- function(x) {
   return(x_out)
 }
 
-df_WI_small <- df_WI_small %>%
+df_A_small <- df_A_small %>%
   mutate(DEATHS_daily  = make_vec(DEATHS)) %>% 
   mutate(POSITIVE_daily = make_vec(POSITIVE)) %>%
   mutate(NEGATIVE_daily = make_vec(NEGATIVE)) %>%
@@ -79,28 +84,28 @@ df_WI_small <- df_WI_small %>%
 
 #make weekly bin example
 
-n_use <- nrow(df_WI_small)
+n_use <- nrow(df_A_small)
 
-df_WI_small  <- df_WI_small %>% 
+df_A_small  <- df_A_small %>% 
                 mutate(seq_day = seq(from=1, to=n_use)) %>% 
                 mutate(week_ID = (seq_day - 1) %/% 7 + 1) %>% 
                 mutate(week_day = weekdays(Date_reported,abbreviate=TRUE))  
                
   
-df_WI_small_week <-   df_WI_small %>%
+df_A_small_week <-   df_A_small %>%
                       group_by(week_ID) %>% 
                       summarise(deaths_week = sum(DEATHS_daily))
 
-df_WI_small_week_complete <- df_WI_small_week[1:12,]
+df_A_small_week_complete <- df_A_small_week[1:12,]
 
-dfz <- df_WI_small_week_complete
+dfz <- df_A_small_week_complete
 
 dfz$week_date_back <- seq.Date(from=as.Date("2020-03-23"),to=as.Date("2020-06-08"),by = 7)
 ```
 
-## Plot of deaths close but doesn't match memo plot exactly
+## Plot of deaths
 
-Plot is close but not identical to memo's plot of deaths.   Close enough to go to next step.
+Plot for state level deaths is close but not identical to memo's plot of deaths.   Close enough to go to next step.
 
 ```{r plot_deaths, echo=FALSE}
 weeks <- dfz$week_date_back
@@ -109,7 +114,7 @@ weeks <- dfz$week_date_back
 p0 <- ggplot(data=dfz,aes(x=week_date_back,y=deaths_week))+
         theme_bw()+
         geom_point()+
-        labs(title="Deaths per week")+
+        labs(title=paste0(location," Deaths per week"))+
         scale_x_date(breaks=weeks, date_labels ="%m-%d-%Y")+
         theme(axis.text.x = element_text(angle=45, hjust=1,vjust=1))+
         xlab("")+
@@ -128,7 +133,7 @@ current_count <- dfz$deaths_week[max_row]
 print(paste0("Last full week dated ",as.character(dfz$week_date_back[max_row]),":", current_count, " deaths"))
 
 #function used to calculate reverse sums
-JB_stat <- function(k,df){
+SW <- function(k,df){
   vec1 <- df$deaths_week[c((max_row - k):(max_row - 1))]
   cumsum  <-sum(vec1)
 }
@@ -136,9 +141,9 @@ JB_stat <- function(k,df){
 dfz1 <- dfz[1:(max_row-1),]
 
 #now reverse the vector to line up with the weeks correctly
-stat_vec <- rev(unlist(lapply(1:nrow(dfz1),JB_stat,df=dfz1)))
+SW_vec <- rev(unlist(lapply(1:nrow(dfz1),SW,df=dfz1)))
 
-dfz1$SW <- stat_vec
+dfz1$SW <- SW_vec
 
 #now calculate the statistic:  take the reverse cum sum, divide by the reverse week count and subtract the count of the last full week in the data series
 dfz1 <- dfz1 %>% mutate(stat_JB = SW/(max_row - week_ID) - current_count)
@@ -148,7 +153,7 @@ knitr::kable(dfz1)
 p1 <- ggplot(data=dfz1,aes(y=stat_JB,x=week_date_back))+
         theme_bw()+
         geom_point()+
-        labs(title="Reverse cum stat plot, test 1")+
+        labs(title=paste0(location," Reverse cum stat plot, test 1")) +
         xlab("Week ending date")+
         ylab("Deviations of reverse cusum \n from max week count")+
         scale_x_date(breaks=weeks, date_labels ="%m-%d-%Y")+
@@ -157,7 +162,370 @@ p1 <- ggplot(data=dfz1,aes(y=stat_JB,x=week_date_back))+
 
 p1
 
-#Scale to limits shown in Figure 3
-
-p1 + ylim(-300,200)
+#Scale to limits shown in Figure 3 for state level deaths
+if(location == "WI") {
+    p1 + ylim(-300,200)
+}
 ```
+
+
+### Example calculations:  is this the method used to compute control limits in Figure 3?
+I am trying to define the DHS method to understand properties of the proposed control chart.
+
+``` {r control_limit_test}
+CT <- dfz$deaths_week[max_row]
+
+dfz2 <- dfz1 %>% mutate(W = 12 - week_ID) 
+
+#function to compute the minimum count k such that the poisson.test(CT,k) exceeds 0.999, approximately p_+3sigma for N(0,1)
+UCL_calc <- function(CT){
+        k <- CT + 1
+        ptest <- poisson.test(CT,k,alternative='g')
+        while(ptest$p.value < .999) {
+          k <- k + 1
+          ptest <- poisson.test(CT,k,alternative='g')
+        }
+        return(k)
+}
+
+#function to compute the maximum count k such that the poisson.test(CT,k) is less than 0.001, approximately p_-3sigma for N(0,1)
+LCL_calc <- function(CT){
+        k <- CT - 1
+        ptest <- poisson.test(CT,k, alternative='l')
+        while(ptest$p.value > .001) {
+          k <- k - 1
+          ptest <- poisson.test(CT,k)
+        }
+        return(k)
+}
+
+UCL_calc(CT)
+
+LCL_calc(CT)
+
+#now scale the centered control limit counts
+dfz2 <- dfz2 %>% mutate(UCL_centered = W*(UCL_calc(CT) - CT)) %>% 
+            mutate(LCL_centered = W*(LCL_calc(CT) - CT))
+
+knitr::kable(dfz2)
+
+p_Fig3 <- ggplot(data=dfz2,aes(x=week_date_back,y=stat_JB))+
+        theme_bw()+
+        geom_point()+
+        labs(title=paste0(location," Reverse cum stat plot, test 1 with limits shown as dashed lines")) +
+        xlab("Week ending date")+
+        ylab("Deviations of reverse cusum \n from max week count")+
+        scale_x_date(breaks=weeks, date_labels ="%m-%d-%Y")+
+        theme(axis.text.x = element_text(angle=45, hjust=1,vjust=1))+
+        geom_line(aes(x=week_date_back,y=UCL_centered),linetype='dashed')+
+        geom_line(aes(x=week_date_back,y=LCL_centered),linetype='dashed')
+          
+p_Fig3
+```
+
+
+### Using standard control chart logic
+Average run length (ARL) is a common way to characterize performance of control charts:   what is the average run of observations that lead to an out-of-control signal (Shewhart Criterion 1) when the system has not changed?   In other words, if you establish the chart limits using a baseline set of observations and future observations are generated by a system unchanged from the baseline conditions, how many observations will you see on average before a signal?
+
+For standard Shewhart charts, the ARL is straighforward:  if the probability of exceeding the control limits is p and the system is in a state of control, the observations plotted on the chart may be treated as a realization from a series of independent and identically distributed variables.   The run length N is modeled by a geometric distribution:  $P(N = n) = p(1 - p)^{n-1}$, n = 1,2,3,...   The expected value of N is 1/p.
+
+For cusum charts, the calculations are more complicated.   ARLs of charts for continuous variables appear to require [solution of integral equations](https://www.itl.nist.gov/div898/handbook/pmc/section3/pmc3231.htm).  ARLs of charts for count variables may be obtained by a Markov chain method (Brook, D., and Evans, D. A. (1972), “An Approach to the Probability Distribution of CUSUM Run Lengths,” *Biometrika*,
+**59**, 539-549).  For integer values of the deviation parameter k, this method can give exact results.  I have coded a simulation method to estimate ARLs for Poisson count cusums, used below.  See functions in helperCusum.R
+
+I have not figured out how to calculate ARL for the DHS proposed ratio chart (the analysis depends on whether I have characterized the DHS method correctly, of course).
+
+
+``` {r control_chart_logic, echo = FALSE}
+
+#for large counts like the WI death series, we compute the reference baseline x-bar and sigma_hat and project forward in time.
+#for small counts like the county series, use Lucas approach.   How to automate selection of h and k?
+
+xbar <- mean(dfz2$deaths_week)
+
+MR <- diff(dfz2$deaths_week)
+
+MMR <- median(abs(MR),na.rm=TRUE)
+
+sigma_hat  <- (3.14/3) * MMR
+
+##########################################################################################
+# A standard choice for continuous variables chooses the multiple of sigma-hat as 0.5 and the scale-factor for the limits, h, as 4.
+# This leads to an approximate in-control ARL of 336 for the corresponding cusum chart.   If the process shifts one-sigma units, then #the ARL for the cusum chart will be a bit more than 8 (two-sided calculations).   See for example #https://www.itl.nist.gov/div898/handbook/pmc/section3/pmc3231.htm
+
+k <- 0.5
+k_sigma_hat <- k*sigma_hat
+h <-  4
+Target <- xbar
+#calculate upper sums
+S_upper <- vector()
+S_upper[1] <- max(0,dfz2$deaths_week[1] - (Target + k_sigma_hat))
+for(i in 2:max_row-1){
+  S_upper[i] <- max(0,dfz2$deaths_week[i] - (Target + k_sigma_hat) + S_upper[i-1] )
+}
+
+#calculate lower sums
+S_lower <- vector()
+S_lower[1] <- min(0,dfz2$deaths_week[1] - (Target - k_sigma_hat))
+for(i in 2:max_row-1){
+  S_lower[i] <- min(0,dfz2$deaths_week[i] - (Target - k_sigma_hat)+ S_lower[i-1] )
+}
+
+dfz2$S_upper <- S_upper
+dfz2$S_lower <- S_lower
+
+dfz2$cusum_upper <- h*sigma_hat
+dfz2$cusum_lower <- -h*sigma_hat
+
+p_cusum <- ggplot(data=dfz2,aes(x=week_date_back,y=S_upper))+
+        theme_bw()+
+        geom_point(shape = 1)+
+        geom_point(aes(x=week_date_back,y=S_lower),shape=2)+
+        labs(title=paste0(location," Ordinary cusum plot with limits shown as dashed lines"),
+             subtitle = paste0("Large counts allow continuous cusum charting calculations.\n  Target is mean, ",round(Target,1),";limits are +/-4*sigma-hat; deviations from Target +/- .5*sigma-hat"),
+             caption = "upper cusum statistic:  circle; lower cusum statistic:  triangle") +
+        xlab("Week ending date")+
+        ylab("Cusum statistic")+
+        scale_x_date(breaks=weeks, date_labels ="%m-%d-%Y")+
+         expand_limits(x=max(dfz$week_date_back+35))+
+        theme(axis.text.x = element_text(angle=45, hjust=1,vjust=1))+
+        geom_line(aes(x=week_date_back,y=cusum_upper),linetype='dashed')+
+        geom_line(aes(x=week_date_back,y=cusum_lower),linetype='dashed')
+
+p_cusum
+
+```
+
+### Example of cusum following Lucas (1985):  Look at Dane County Deaths using Poisson Counts Cusum
+``` {r make_Dane, echo=FALSE}
+
+location <- "Dane"
+df_A <- df1 %>% filter(NAME == location)
+
+df_A_small <- df_A %>% select(GEOID,GEO,NAME,Date_reported,NEGATIVE,POSITIVE,DEATHS)
+#Error in Positive Series for Dane
+df_A_small$POSITIVE[df_A_small$Date_reported == as.Date("2020-04-16") & df_A_small$NAME == "Dane"] <- 351
+df_A_small$POSITIVE[df_A_small$Date_reported == as.Date("2020-04-17") & df_A_small$NAME == "Dane"] <- 352
+
+
+
+# function to make differenced series correct with initial value
+make_vec <- function(x) {
+  x_out <- x -lag(x)
+  x_out[1] <- x[1]
+  return(x_out)
+}
+
+df_A_small <- df_A_small %>%
+  mutate(DEATHS_daily  = make_vec(DEATHS)) %>% 
+  mutate(POSITIVE_daily = make_vec(POSITIVE)) %>%
+  mutate(NEGATIVE_daily = make_vec(NEGATIVE)) %>%
+  #issue is that counties early in series do not have negative tests
+  mutate(Total_daily_tests = POSITIVE_daily + NEGATIVE_daily) %>%
+  mutate(POS_pct_daily = 100*(POSITIVE_daily/Total_daily_tests)) 
+
+#make weekly bin example
+
+n_use <- nrow(df_A_small)
+
+df_A_small  <- df_A_small %>% 
+                mutate(seq_day = seq(from=1, to=n_use)) %>% 
+                mutate(week_ID = (seq_day - 1) %/% 7 + 1) %>% 
+                mutate(week_day = weekdays(Date_reported,abbreviate=TRUE))  
+               
+  
+df_A_small_week <-   df_A_small %>%
+                      group_by(week_ID) %>% 
+                      summarise(deaths_week = sum(DEATHS_daily))
+
+df_A_small_week_complete <- df_A_small_week[1:12,]
+
+dfz <- df_A_small_week_complete
+
+dfz$week_date_back <- seq.Date(from=as.Date("2020-03-23"),to=as.Date("2020-06-08"),by = 7)
+```
+
+## Plot of deaths
+
+Plot for Dane County deaths
+
+```{r plot_deaths_Dane, echo=FALSE}
+weeks <- dfz$week_date_back
+
+
+p0 <- ggplot(data=dfz,aes(x=week_date_back,y=deaths_week))+
+        theme_bw()+
+        geom_point()+
+        labs(title=paste0(location," Deaths per week"))+
+        scale_x_date(breaks=weeks, date_labels ="%m-%d-%Y")+
+        expand_limits(x=max(dfz$week_date_back+35))+
+        theme(axis.text.x = element_text(angle=45, hjust=1,vjust=1))+
+        xlab("")+
+        ylab("Count")
+p0
+```
+### Poisson Count cusum plot for Dane County Deaths:  design of chart to detect a doubled rate
+```{r reg_cusum_setup1, echo = TRUE}
+
+  
+  avg_counts <-  mean(dfz$deaths_week)
+  
+ #base rate
+ new_count_rate <- 2
+  
+ k1 <- (new_count_rate - 1)*avg_counts/log(new_count_rate)
+  
+ print(paste0("k value given new count_rate ",new_count_rate,": ",k1))
+  
+  #Using Lucas Table 2, for k = 3 and null mean ratio 0.8 and alternative mean ratio 1.2, 
+  #h = 5 provides a cusum chart with ARL in null case of 52 weeks and ARL in alternative of 7 weeks
+  #For illustration only, not for practical application, signal much too slowly!
+  #if we want to make a chart that detects a doubling in the rate, k = 3.5.   
+  #Need to use code from Cusum script.
+  
+  
+  set.seed(1234)
+  hvals_use <- c(2,3,4,5)
+  tic("null case ARL table")
+  summary_table1 <- make_table_RL(h_vals_use = hvals_use,
+                                n_use      = 5000,
+                                nrep_use   = 500,
+                                k_use      = k1,
+                                Po_mean_use= avg_counts)
+  
+  
+  toc1 <- toc(quiet = TRUE)
+  
+ knitr::kable(summary_table1,row.names = FALSE,
+      caption = "5000 random values from Po(null), repeated 500 times; k = k1")
+  
+```
+ 
+ Elapsed time to create Table 3:  `r toc1$toc - toc1$tic` seconds.
+ 
+```{r reg_cusum_setup2, echo = FALSE}
+tic()
+
+summary_table2 <- make_table_RL(h_vals_use = hvals_use,
+                                n_use      = 200,
+                                nrep_use   = 1000,
+                                k_use      = k1,
+                                Po_mean_use= new_count_rate*avg_counts)
+
+# htmlTable(summary_table2,rnames=FALSE, caption = "200 random values from Po(alternative), repeated 1000 times; k = k1.")  
+toc2 <- toc(quiet = TRUE)
+
+knitr::kable(summary_table2,row.names = FALSE,
+      caption = "200 random values from Po(alternative), repeated 1000 times; k = k1.")
+
+
+```
+
+Elapsed time to create Table 4:  `r toc2$toc - toc2$tic` seconds.
+ 
+```{r Dane_cusum_chart}
+    n <- nrow(dfz)
+
+    #create upper cusum statistic
+    cusum <- vector("double", nrow(dfz))
+    
+    i_index <-  vector("integer", n)
+    
+    S_current <- 0
+      for(i in 1:n) {
+      cusum[i] <- S_update_upper(S_current,k_value = k1,current_count = dfz$deaths_week[i])
+      
+      S_current <- cusum[i]
+      
+      }
+    
+    dfz$cusum_upper <- cusum
+    
+    #buffer to add plot
+    
+    
+    #examining Lucas type ARL table from simulation, choose h = 4:  to detect a doubled rate from
+    
+    p_cusum_Dane <- ggplot(data=dfz,aes(x=week_date_back,y=cusum_upper))+
+            theme_bw()+
+            geom_point(size=rel(1.5))+
+            geom_hline(yintercept = 4, linetype = "dashed") +
+            labs(title = "Upper cusum statistic from Dane County Death Series")+
+            expand_limits(x=max(dfz$week_date_back+35))+
+            scale_x_date(breaks=weeks, date_labels ="%m-%d-%Y")+
+            theme(axis.text.x = element_text(angle=45, hjust=1,vjust=1))+
+            xlab("")+
+            ylab("cusum")
+
+        
+    p_cusum_Dane
+```
+
+### More options for charting to detect changes in low count series
+
+1. Day of week pattern:   plot a chart for each day of the week (seven charts)
+
+2. Look at days between rare events (less than one event per day):  either directly in a t-chart or as a time between events cusum chart as discussed in Lucas (1985).
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
