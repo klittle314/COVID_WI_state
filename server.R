@@ -18,9 +18,11 @@ shinyServer(function(input, output, session) {
         
         location <- input$choose_location
         
-        date_calc <- input$date_fix_control_chart_limits
-        #browser()
-        plot_out <- count_plot(df1_small,location,date_calc)
+        date_calc_end <- input$date_end_baseline
+        
+        date_calc_start <- input$date_start_baseline
+       
+        plot_out <- count_plot(df1_small,location,date_calc_end,date_calc_start)
         
     })
     
@@ -35,18 +37,22 @@ shinyServer(function(input, output, session) {
       
         location <- input$choose_location
         
-        date_end <- input$date_fix_control_chart_limits
+        date_calc_end <- input$date_end_baseline
         
-        control_charts_out <- p_control_chart_plots(df1_small,location,date_end)
+        date_calc_start <- input$date_start_baseline
+        #browser()
+        control_charts_out <- p_control_chart_plots(df1_small,location,date_calc_end, date_calc_start)
     })
     
     make_ccontrol_chart <- reactive({
         
         location <- input$choose_location_low_count
         
-        date_end <- input$date_fix_control_chart_limits
+        date_calc_end <- input$date_end_baseline
+        
+        date_calc_start <- input$date_start_baseline
         #browser()
-        control_chart_out <- c_control_chart_plot(df1_small,location,date_end)
+        control_chart_out <- c_control_chart_plot(df1_small,location,date_calc_end,date_calc_start)
     })
    ####################Render the plot objects
      
