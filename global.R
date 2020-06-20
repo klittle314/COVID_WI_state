@@ -4,6 +4,7 @@ library(GGally)
 library(gridExtra)
 library(data.table)
 library(geofacet)
+library(lubridate)
 source("helper.R")
 
 #set up the file, filepath and data directory
@@ -37,21 +38,21 @@ if(file.exists(data_file_stateWI)) {
 #pull state and county records
 df1 <- df_in %>% filter(GEO %in% c('State','County'))
 
-
-
 #distinguish baseline from most recent 14 days
 cut_date <- max(df1$Date_reported) - 14
 
 df1$phase <- ifelse(df1$Date_reported <= cut_date,"baseline","last 14 days")
 
 df1_small <- df1 %>% select(GEOID,GEO,NAME,Date_reported,NEGATIVE,POSITIVE)
-#Error in Negative Series for State
-df1_small$NEGATIVE[df1_small$Date_reported == as.Date("2020-03-29") & df1_small$GEO == "State"] <- 15856
-df1_small$NEGATIVE[df1_small$Date_reported == as.Date("2020-03-30") & df1_small$GEO == "State"] <- 16550
 
-#Error in Positive Series for Dane
-df1_small$POSITIVE[df1_small$Date_reported == as.Date("2020-04-16") & df1_small$NAME == "Dane"] <- 351
-df1_small$POSITIVE[df1_small$Date_reported == as.Date("2020-04-17") & df1_small$NAME == "Dane"] <- 352
+# non monotonicity now handled by the function make_vec
+# #Error in Negative Series for State
+# df1_small$NEGATIVE[df1_small$Date_reported == as.Date("2020-03-29") & df1_small$GEO == "State"] <- 15856
+# df1_small$NEGATIVE[df1_small$Date_reported == as.Date("2020-03-30") & df1_small$GEO == "State"] <- 16550
+# 
+# #Error in Positive Series for Dane
+# df1_small$POSITIVE[df1_small$Date_reported == as.Date("2020-04-16") & df1_small$NAME == "Dane"] <- 351
+# df1_small$POSITIVE[df1_small$Date_reported == as.Date("2020-04-17") & df1_small$NAME == "Dane"] <- 352
 
 #now extract only the overall testing numbers and create daily counts
 df1_small <- df1_small %>%
@@ -79,7 +80,7 @@ min_n_pos_tests <- 100
 POS_daily_max_limit <- 10
 
 #cut point for reference of 'small' counts
-Date_limit_small_counts <- as.Date("2020-05-11")
+Date_limit_small_counts <- today()#as.Date("2020-05-11")
 
 #name list of counties with small counts
 df1_small_gate1 <- df1_small %>% filter(Date_reported <= Date_limit_small_counts) %>%
