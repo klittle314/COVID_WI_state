@@ -41,7 +41,7 @@ shinyUI(navbarPage("Wisconsin Gating Criteria Data",
             span("Created by "),
             a("Kevin Little", href = "mailto:klittle@iecodesign.com"),
             
-            span("updated 11 May 2020  9:00 am CDT"),
+            span("updated 20 June 2020 9:00 am CDT"),
             
             br(), br(),
             
@@ -72,10 +72,16 @@ shinyUI(navbarPage("Wisconsin Gating Criteria Data",
                     width    = "100%"),
                 
                 dateInput(
-                    inputId  = 'date_fix_control_chart_limits',
+                    inputId  = 'date_end_baseline',
                     label    = h5('Set date for last day of baseline; default is 15 days before end of series.'),
                     value    = cut_date
-                  )
+                  ),
+                
+                dateInput(
+                    inputId  = 'date_start_baseline',
+                    label    = h5('Set date for first day of baseline; default is 45 days before end of series.'),
+                    value    = cut_date - 29
+                )
                 ),
             
            
