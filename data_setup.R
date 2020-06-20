@@ -40,6 +40,8 @@ df_test <- df1 %>% filter(Date_reported > as.Date("2020-03-27") & Date_reported 
 df1_small_state <- df1 %>% select(GEO,NAME,Date_reported,NEGATIVE,POSITIVE) %>% filter(GEO == 'State')
 df1_small_state$NEGATIVE[df1_small_state$Date_reported == as.Date("2020-03-29")] <- 15856
 df1_small_state$NEGATIVE[df1_small_state$Date_reported == as.Date("2020-03-30")] <- 16550
+#now pull only the key variables for initial analysis
+
 
 df1_small_state <- df1_small_state %>%
                   group_by(NAME) %>% 
@@ -171,3 +173,5 @@ grid.arrange(pprime_chart,ptests)
 #Method notes:  Establish baseline center line and limits using Laney, up to N - 14.  Extend the average line
 #and the limits based on the sample size of the new points and the previous average.   Look for evidence of
 #shift relative to the limits.  What is the 'algorithm' for updating the chart?  Do you need human intervention?
+
+
