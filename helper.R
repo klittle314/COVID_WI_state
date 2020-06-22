@@ -170,13 +170,19 @@ if(!(location %in% counties_small_counts)){
       df_slopes <- do.call(rbind, list_df_slope_pars)
   
       df_slopes$Date_end <- list_dates$date_seq + 13
+      
+      caption1 <- "95 percent confidence interval limits for each slope marked by *"
+      
+      if(location=="WI") {
+        caption1 <- paste0(caption1,"; Pct Pos = 100% omitted for 3/30/2020")
+      }  
   
       p_slopes <- ggplot(data=df_slopes,aes(x=Date_end,y=slope))+
         theme_bw()+
         geom_point()+
         labs(title = paste0('Slope of Pct Positive Tests: 14 day windows for ',location),
              subtitle = "The slope plotted for each day is the slope from the linear fit of \n pct positive daily tests in a 14 day window ending at the day's date",
-             caption = '95 percent confidence interval limits for each slope marked by *')+
+             caption = caption1)+
         geom_point(aes(x=Date_end,y=LCI),shape=8)+
         geom_point(aes(x=Date_end,y=UCI),shape=8)+
         geom_hline(yintercept=0) +
