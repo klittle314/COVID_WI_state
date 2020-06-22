@@ -152,6 +152,11 @@ slopes_plot <- function(dfA,location) {
 if(!(location %in% counties_small_counts)){
   df1 <- dfA %>% filter(NAME == location)
   
+  #problem on March 30 for positive tests state level, the back check method leads to 100% positive testing.  Replace for calculating slopes.
+  if(location == "WI") {
+    df1$POS_pct_daily[df1$POS_pct_daily> 99] <-  NA
+  }
+  
   list_dates <- seq_dates(df1)
   
   #compute how many positive tests have been seen in the series; we use an arbitrary cut point of 100 on 5-10-2020
