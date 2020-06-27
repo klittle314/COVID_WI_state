@@ -54,14 +54,27 @@ df1_small <- df1 %>% select(GEOID,GEO,NAME,Date_reported,NEGATIVE,POSITIVE)
 # df1_small$POSITIVE[df1_small$Date_reported == as.Date("2020-04-16") & df1_small$NAME == "Dane"] <- 351
 # df1_small$POSITIVE[df1_small$Date_reported == as.Date("2020-04-17") & df1_small$NAME == "Dane"] <- 352
 
-#now extract only the overall testing numbers and create daily counts
+# #now extract only the overall testing numbers and create daily counts
+# df1_small <- df1_small %>%
+#   group_by(NAME) %>% 
+#   mutate(POSITIVE_daily = make_vec(POSITIVE)) %>%
+#   mutate(NEGATIVE_daily = make_vec(NEGATIVE)) %>%
+#   #issue is that counties early in series do not have negative tests
+#   mutate(Total_daily_tests = POSITIVE_daily + NEGATIVE_daily) %>%
+#   mutate(POS_pct_daily = 100*(POSITIVE_daily/Total_daily_tests)) 
+
+#extract only the overall testing numbers and create daily counts forcing monotonicity, Steve G use of cummin
 df1_small <- df1_small %>%
-  group_by(NAME) %>% 
-  mutate(POSITIVE_daily = make_vec(POSITIVE)) %>%
-  mutate(NEGATIVE_daily = make_vec(NEGATIVE)) %>%
+  group_by(NAME) %>%
+  arrange(desc(Date_reported)) %>%
+  mutate(NEGATIVE = cummin(NEGATIVE)) %>%
+  mutate(POSITIVE = cummin(POSITIVE)) %>%
+  arrange(Date_reported) %>% 
+  mutate(POSITIVE_daily = make_vec1(POSITIVE)) %>%
+  mutate(NEGATIVE_daily = make_vec1(NEGATIVE)) %>%
   #issue is that counties early in series do not have negative tests
   mutate(Total_daily_tests = POSITIVE_daily + NEGATIVE_daily) %>%
-  mutate(POS_pct_daily = 100*(POSITIVE_daily/Total_daily_tests)) 
+  mutate(POS_pct_daily = 100*(POSITIVE_daily/Total_daily_tests))  
 
 #create a 14 day index for use in slope calculations
 daycode0 <- seq.int(from = 0, to = 13, by = 1)
