@@ -17,6 +17,14 @@ make_vec <- function(x) {
   return(x_out)
 }
 
+make_vec1 <- function(x){
+  x_out <- x -lag(x)
+  
+  x_out[1] <- x[1]
+  
+  return(x_out)
+}
+
 
 #make basic count plot
 
