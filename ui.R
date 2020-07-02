@@ -41,7 +41,7 @@ shinyUI(navbarPage("Wisconsin Gating Criteria Data",
             span("Created by "),
             a("Kevin Little", href = "mailto:klittle@iecodesign.com"),
             
-            span("updated 21 June 2020 11:00 pm CDT"),
+            span("updated 1 July 2020 11:00 pm CDT"),
             
             br(), br(),
             
@@ -91,7 +91,19 @@ shinyUI(navbarPage("Wisconsin Gating Criteria Data",
                tabsetPanel(id = 'display-tab', type = 'tabs',
                 tabPanel("Count Plots",
                 
-                         plotOutput('count_plot', height="600px")
+                         plotOutput('count_plot', height="600px"),
+                         
+                         br(),
+                         
+                         conditionalPanel(
+                             'input.count_agg_weekly',
+                             tags$h5('Values are sums of daily values within 7 day windows')
+                         ),
+                         
+                         checkboxInput(
+                             inputId = 'count_agg_weekly',
+                             label   = 'Aggregate daily count to weekly',
+                             value   = FALSE),
                 ),
                
                 # tabPanel("Gating Slope Check Plot",
