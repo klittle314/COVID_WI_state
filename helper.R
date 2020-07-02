@@ -28,10 +28,16 @@ make_vec1 <- function(x){
 
 #make basic count plot
 
-count_plot <- function(dfx,location,date_calc_end, date_calc_start){
+count_plot <- function(dfx,location,date_calc_end, date_calc_start,agg_weekly = FALSE){
       #distinguish baseline from most recent 14 days
-      dfx <- dfx %>% filter(NAME == location)
+      dfx <- dfx %>% filter(NAME == location) %>% select(-GEOID)
       #cut_date <- max(dfx$Date_reported) - 14
+      
+      if(agg_weekly) {
+        dfx <- daily_to_weekly(dfx) %>% 
+                  filter(!is.na(week_num)) %>% 
+                  rename(Date_reported = week_end)
+      }
       
       dfx$phase <- ifelse(dfx$Date_reported < date_calc_start,
                            "history",
@@ -42,27 +48,40 @@ count_plot <- function(dfx,location,date_calc_end, date_calc_start){
       
       dfx$phase <-  factor(dfx$phase, levels = c("history","baseline","post_baseline"))
      
-      dfx_longer <- dfx %>% 
-        select(GEO,NAME,Date_reported,POSITIVE_daily,NEGATIVE_daily,Total_daily_tests,POS_pct_daily,phase) %>%
-        pivot_longer(cols = -c("GEO","NAME","Date_reported","phase"),
-                     names_to = "Measure",
-                     values_to = "value")
-      
-      dfA <- dfx_longer %>% filter(Measure %in% c('NEGATIVE_daily','POS_pct_daily','POSITIVE_daily','Total_daily_tests'))
-      dfA$Measure <- factor(dfA$Measure, levels=c("POSITIVE_daily", 'NEGATIVE_daily','Total_daily_tests','POS_pct_daily'))
+      if(!agg_weekly){
+          dfx_longer <- dfx %>% 
+            select(GEO,NAME,Date_reported,POSITIVE_daily,NEGATIVE_daily,Total_daily_tests,POS_pct_daily,phase) %>%
+            pivot_longer(cols = -c("GEO","NAME","Date_reported","phase"),
+                         names_to = "Measure",
+                         values_to = "value")
+          
+          dfA <- dfx_longer %>% filter(Measure %in% c('NEGATIVE_daily','POS_pct_daily','POSITIVE_daily','Total_daily_tests'))
+          dfA$Measure <- factor(dfA$Measure, levels=c("POSITIVE_daily", 'NEGATIVE_daily','Total_daily_tests','POS_pct_daily'))
+          
+          #problem on March 30 for positive tests state level, the back check method leads to 100% positive testing.  Replace for plotting.
+          if(location == "WI") {
+              dfA$value[dfA$Measure == "POS_pct_daily" & dfA$value > 25] <-  NA
+          }
+      } else {
+         dfx_longer <- dfx %>% 
+           select(GEO,NAME,Date_reported,week_num,POS_week,NEG_week,TOT_week,POS_pct_week,phase) %>%
+           pivot_longer(cols = -c("GEO","NAME","Date_reported","week_num","phase"),
+                        names_to = "Measure",
+                        values_to = "value")
+         dfA <- dfx_longer %>% filter(Measure %in% c("POS_week","NEG_week","TOT_week","POS_pct_week"))
+         dfA$Measure <- factor(dfA$Measure, levels=c("POS_week","NEG_week","TOT_week","POS_pct_week"))
+                 
+      }
+     
       
       #create medians
       dfA1 <- dfA %>% filter(phase == 'baseline')
       med_A1 <- as.vector(tapply(dfA1$value,dfA1$Measure, median, na.rm=TRUE))
-      Measure <- levels(dfA1$Measure)
+      Measure <- factor(levels(dfA1$Measure), levels = levels(dfA1$Measure))
       df.hlines <- data.frame(Measure, med_A1)
       
-      #problem on March 30 for positive tests state level, the back check method leads to 100% positive testing.  Replace for plotting.
-      if(location == "WI") {
-          dfA$value[dfA$Measure == "POS_pct_daily" & dfA$value > 25] <-  NA
-      }
       
-      p1 <- ggplot(data=dfA,aes(x=Date_reported,y=value))+
+       p1 <- ggplot(data=dfA,aes(x=Date_reported,y=value))+
         theme_bw()+
         geom_point(aes(shape=phase),size=rel(2))+
         facet_wrap(~Measure,
@@ -85,7 +104,7 @@ count_plot <- function(dfx,location,date_calc_end, date_calc_start){
               legend.title= element_text(size = 8))
       
       #problem on March 30 for positive tests, the back check method leads to 100% positive testing.
-      if(location=="WI") {
+      if(location=="WI" & !agg_weekly) {
         p1 <- p1 + labs(caption = "Set aside Pct Positive on 30 March:  cleaning method gives 100% positive")
       }
       
