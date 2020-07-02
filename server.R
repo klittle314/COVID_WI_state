@@ -22,7 +22,7 @@ shinyServer(function(input, output, session) {
         
         date_calc_start <- input$date_start_baseline
        
-        plot_out <- count_plot(df1_small,location,date_calc_end,date_calc_start)
+        plot_out <- count_plot(df1_small,location,date_calc_end,date_calc_start, agg_weekly = input$count_agg_weekly)
         
     })
     
