@@ -431,11 +431,17 @@ p_control_chart_plots <- function(dfA,location, date_calc_end, date_calc_start) 
 }
 
 #function to create a c-chart for counties with low counts
-c_control_chart_plot <- function(dfA,location,date_calc_end,date_calc_start) {
+c_control_chart_plot <- function(dfA,location,date_calc_end,date_calc_start, agg_weekly) {
   #Date_limit_small_counts <- as.Date("2020-05-11") will serve as initial cut point for control limits
   #requre at least 10 positive cases else return message 'insufficient data to make control chart'
   
   df0 <- dfA %>% filter(NAME == location)
+  
+  if(agg_weekly) {
+    df0 <- daily_to_weekly(df0) %>% 
+      filter(!is.na(week_num)) %>% 
+      rename(Date_reported = week_end)
+  }
   
   df0$phase <- ifelse(df0$Date_reported < date_calc_start,
                       "history",
@@ -444,19 +450,35 @@ c_control_chart_plot <- function(dfA,location,date_calc_end,date_calc_start) {
                              "baseline","post_baseline")
   )
   
+  df0$phase <-  factor(df0$phase, levels = c("history","baseline","post_baseline"))
+  
   df0_baseline <- df0 %>% filter(phase=="baseline")
   
-  cchart_mean <- mean(df0_baseline$POSITIVE_daily)
+  if(!agg_weekly){
   
-  cchart_UCL <- cchart_mean + 3*sqrt(cchart_mean)
+        cchart_mean <- mean(df0_baseline$POSITIVE_daily)
+        
+        df0$value <- df0$POSITIVE_daily
+        
+        title1 <- paste0('c-control chart of daily positive cases for ', location,' County')
+        
+  } else {
+        cchart_mean <- mean(df0_baseline$POS_week)
+        
+        df0$value <- df0$POS_week
+        
+        title1 <- paste0('c-control chart of weekly positive cases for ', location,' County')
+  }
   
-  cchart_LCL <- max(0,cchart_mean - 3*sqrt(cchart_mean), na.rm=TRUE)
+        cchart_UCL <- cchart_mean + 3*sqrt(cchart_mean)
   
-  p_c_chart <- ggplot(data=df0,aes(x=Date_reported, y=POSITIVE_daily))+
+        cchart_LCL <- max(0,cchart_mean - 3*sqrt(cchart_mean), na.rm=TRUE)
+  
+  p_c_chart <- ggplot(data=df0,aes(x=Date_reported, y=value))+
                 theme_bw()+
                 geom_point(aes(shape=phase),size=rel(3))+
                 geom_line()+
-                labs(title = paste0('c-control chart of daily positive cases for ', location,' County'),
+                labs(title = title1,
                      subtitle = paste0("mean and control limit(s) based on baseline period, ", as.character(date_calc_start),":",as.character(date_calc_end)))+
                 ylab("")+
                 xlab("Date Reported")+
@@ -474,3 +496,41 @@ c_control_chart_plot <- function(dfA,location,date_calc_end,date_calc_start) {
  return(p_c_chart)
   
 }
+
+#######################daily to weekly functions
+
+rolling_week <- function(date_vector, end_date = as.Date(Sys.Date())){
+  #Coerce to dates
+  date_vector <- as.Date(date_vector)
+  end_date = as.Date(end_date)
+  
+  min_date <- min(date_vector)
+  
+  period_length <- as.numeric(difftime(end_date, min_date))
+  period_weeks <- floor(period_length / 7)
+  
+  week_ends <-  c(end_date + lubridate::days(1), end_date - lubridate::weeks(1:period_weeks))
+  
+  out <- period_weeks - cut(date_vector, breaks = week_ends, include_lowest = TRUE, right = TRUE, label = FALSE) + 1
+  
+  return(out)
+}
+
+
+#function accepts df = df1_small structure, specific to a location
+daily_to_weekly <- function(df) {
+  last_date <- max(df$Date_reported)  
+  df1 <- df %>% 
+    mutate(week_num = rolling_week(date_vector = Date_reported,
+                                   end_date = last_date)
+    ) %>% 
+    group_by(GEO,NAME,week_num) %>% 
+    summarize(
+      NEG_week = sum(NEGATIVE_daily),
+      POS_week = sum(POSITIVE_daily),
+      TOT_week = sum(Total_daily_tests),
+      POS_pct_week = 100*POS_week/TOT_week,
+      week_end = max(Date_reported)
+    )
+}
+###################################################
