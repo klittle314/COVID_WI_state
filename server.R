@@ -45,14 +45,14 @@ shinyServer(function(input, output, session) {
     })
     
     make_ccontrol_chart <- reactive({
-        
+        #browser()
         location <- input$choose_location_low_count
         
         date_calc_end <- input$date_end_baseline
         
         date_calc_start <- input$date_start_baseline
         #browser()
-        control_chart_out <- c_control_chart_plot(df1_small,location,date_calc_end,date_calc_start)
+        control_chart_out <- c_control_chart_plot(df1_small,location,date_calc_end,date_calc_start, agg_weekly = input$count_agg_weekly)
     })
    ####################Render the plot objects
      
