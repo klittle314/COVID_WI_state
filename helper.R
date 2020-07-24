@@ -98,10 +98,10 @@ count_plot <- function(dfx,location,date_calc_end, date_calc_start,agg_weekly = 
                  xmin = cut_date + .5, xmax = max(dfA$Date_reported)+.5,
                  ymin = -Inf, ymax = Inf)+
         scale_shape_discrete(na.translate=FALSE)+
-        theme(legend.position = c(0.1, 0.99),
+        theme(legend.position = c(0.125, 0.78),
               legend.justification = c("right", "top"),
-              legend.text = element_text(size = 6),
-              legend.title= element_text(size = 8))
+              legend.text = element_text(size = 8),
+              legend.title= element_text(size = 10))
       
       #problem on March 30 for positive tests, the back check method leads to 100% positive testing.
       if(location=="WI" & !agg_weekly) {
