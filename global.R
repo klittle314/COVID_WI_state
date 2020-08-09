@@ -28,10 +28,10 @@ if(file.exists(data_file_stateWI)) {
                                                     GEOID = 'c',
                                                     GEO = 'c',
                                                     NAME = 'c',
-                                                    LoadDttm = 'c'))
+                                                    DATE = 'c'))
   #date time format of the file changed on 6 May 2020
   #records have form "2020/03/15 19:00:00+00".  So strip off +00 and convert to date-time object
-  df_in$Date_time <- as.POSIXct(gsub("\\+00","",df_in$LoadDttm))
+  df_in$Date_time <- as.POSIXct(gsub("\\+00","",df_in$DATE))
   df_in$Date_reported <- as.Date(df_in$Date_time, tz = "US/Central")
   
 }
