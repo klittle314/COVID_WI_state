@@ -42,6 +42,7 @@ shinyServer(function(input, output, session) {
         date_calc_start <- input$date_start_baseline
         #browser()
         control_charts_out <- p_control_chart_plots(df1_small,location,date_calc_end, date_calc_start)
+        #browser()
     })
     
     make_ccontrol_chart <- reactive({
