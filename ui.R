@@ -4,7 +4,7 @@ library(shinyBS)
 shinyUI(navbarPage("Wisconsin Gating Criteria Data",
     
     tabPanel("Overview",
-    h3("Web App:  Draft 1.0"),
+    h3("Web App:  Draft 1.1"),
     
     wellPanel(
         tags$style(type="text/css", '#leftPanel { width:200px; float:left;}'),
@@ -41,7 +41,7 @@ shinyUI(navbarPage("Wisconsin Gating Criteria Data",
             span("Created by "),
             a("Kevin Little", href = "mailto:klittle@iecodesign.com"),
             
-            span("updated 23 July 2020 11:00 am CDT"),
+            span("updated 3 December 2020 9:00 am CDT"),
             
             br(), br(),
             
