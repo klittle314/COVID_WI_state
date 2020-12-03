@@ -5,36 +5,53 @@ library(gridExtra)
 library(data.table)
 library(geofacet)
 library(lubridate)
+library(jsonlite)
 source("helper.R")
 
 #set up the file, filepath and data directory
-data_file_stateWI <- paste0('data/WI_state_data_', as.character(Sys.Date()), '.csv')
+#CHANGE THE AS CHARACTER DATE STRING
+#data_file_stateWI <- paste0('data/WI_state_data_', "2020-08-08", '.csv')
 
-data_csv <- "https://opendata.arcgis.com/datasets/b913e9591eae4912b33dc5b4e88646c5_10.csv"
+data_file_stateWI <- paste0('data/WI_state_data_', Sys.Date(), '.csv')
+
+#data_csv <- "https://opendata.arcgis.com/datasets/b913e9591eae4912b33dc5b4e88646c5_10.csv"
+
+#November 30:  found the file paths DHS is now using 
+state_url <- "https://opendata.arcgis.com/datasets/859602b5d427456f821de3830f89301c_11.geojson"
+
+county_url <- "https://opendata.arcgis.com/datasets/5374188992374b318d3e2305216ee413_12.geojson"
 
 ifelse(!dir.exists('data'), dir.create('data'), FALSE)
 
 if(!file.exists(data_file_stateWI)) {
-  data1 <- try(fread(data_csv))
+  #data1 <- try(fread(data_csv))
+  data1 <- try(JSON_fread(state_url,county_url))
   write_csv(data1, path=data_file_stateWI)
 }
 
-if(file.exists(data_file_stateWI)) {
+#if(file.exists(data_file_stateWI)) {
   #GEOID is a state, county and census tract code
   #GEOID: 55=State of Wisconsin; 55001:55141 for counties (odd numbers only)                                                
   #census tract ids are then of the form 55xxxyyyyyy
   #Missing census tract id will be stated as TRACT N/A so GEOID is assigned as character type for now
-  df_in <- read_csv(data_file_stateWI, col_types=cols(.default = 'i',
-                                                    GEOID = 'c',
-                                                    GEO = 'c',
-                                                    NAME = 'c',
-                                                    DATE = 'c'))
+  #df_in <- read_csv(data_file_stateWI, col_types=cols(.default = 'i',
+                                               #     GEOID = 'c',
+                                               #     GEO = 'c',
+                                               #     NAME = 'c',
+                                               #     DATE = 'c'))
   #date time format of the file changed on 6 May 2020
   #records have form "2020/03/15 19:00:00+00".  So strip off +00 and convert to date-time object
-  df_in$Date_time <- as.POSIXct(gsub("\\+00","",df_in$DATE))
-  df_in$Date_reported <- as.Date(df_in$Date_time, tz = "US/Central")
+  #df_in$Date_time <- as.POSIXct(gsub("\\+00","",df_in$DATE))
+  #df_in$Date_reported <- as.Date(df_in$Date_time, tz = "US/Central")
   
+#}
+
+if(file.exists(data_file_stateWI)) {
+  df_in <- read_csv(data_file_stateWI)
+  #df_in$Date_time <- as.POSIXct(gsub("\\+00","",df_in$DATE))
+  #df_in$Date_reported <- as.Date(df_in$Date_time, tz = "US/Central")
 }
+
 #pull state and county records
 df1 <- df_in %>% filter(GEO %in% c('State','County'))
 
@@ -74,7 +91,7 @@ df1_small <- df1_small %>%
   mutate(NEGATIVE_daily = make_vec1(NEGATIVE)) %>%
   #issue is that counties early in series do not have negative tests
   mutate(Total_daily_tests = POSITIVE_daily + NEGATIVE_daily) %>%
-  mutate(POS_pct_daily = 100*(POSITIVE_daily/Total_daily_tests))  
+  mutate(POS_pct_daily = if_else(Total_daily_tests > 0,100*(POSITIVE_daily/Total_daily_tests),as.numeric(NA)))  
 
 #create a 14 day index for use in slope calculations
 daycode0 <- seq.int(from = 0, to = 13, by = 1)
