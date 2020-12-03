@@ -1,3 +1,28 @@
+
+#function to read JSON files and do modest clean up
+JSON_fread <- function(state_url = state_url, county_url = county_url){
+  list_JSON_county <- fromJSON(county_url, flatten=TRUE)
+  
+  df_JSON_county <- list_JSON_county$features
+  
+  list_JSON_state <- fromJSON(state_url, flatten=TRUE)
+  
+  df_JSON_state <- list_JSON_state$features[,c(1:67,109)]
+  
+  df_JSON <- rbind.data.frame(df_JSON_state,df_JSON_county)
+  
+  names(df_JSON) <- gsub("properties.","",names(df_JSON))
+  
+  df_JSON$Date_time <- as.POSIXct(gsub("\\+00","",df_JSON$DATE))
+  df_JSON$Date_reported <- as.Date(df_JSON$Date_time, tz = "US/Central")
+  
+  return(df_JSON)
+}  
+
+
+
+
+
 # function to force monotonocity on nominally monotone vector and return differenced series correct with initial value
 make_vec <- function(x) {
   #function to take a nominally monotone vector and force monotonicity by back propagation
@@ -60,7 +85,7 @@ count_plot <- function(dfx,location,date_calc_end, date_calc_start,agg_weekly = 
           
           #problem on March 30 for positive tests state level, the back check method leads to 100% positive testing.  Replace for plotting.
           if(location == "WI") {
-              dfA$value[dfA$Measure == "POS_pct_daily" & dfA$value > 25] <-  NA
+              dfA$value[dfA$Measure == "POS_pct_daily" & dfA$Date_reported == as.Date("2020-03-30")] <-  NA
           }
       } else {
          dfx_longer <- dfx %>% 
@@ -181,7 +206,7 @@ if(!(location %in% counties_small_counts)){
   
   #problem on March 30 for positive tests state level, the back check method leads to 100% positive testing.  Replace for calculating slopes.
   if(location == "WI") {
-    df1$POS_pct_daily[df1$POS_pct_daily> 99] <-  NA
+    df1$POS_pct_daily[df1$Date_reported == as.Date("2020-03-30")] <-  NA
   }
   
   list_dates <- seq_dates(df1)
@@ -245,7 +270,7 @@ p_control_chart_plots <- function(dfA,location, date_calc_end, date_calc_start) 
       
       #problem on March 30 for positive tests state level, the back check method leads to 100% positive testing.  Use NA for plotting.
       if(location == "WI"){
-        df1$POS_pct_daily[df1$POS_pct_daily > 25] <- NA
+        df1$POS_pct_daily[df1$Date_reported == as.Date("2020-03-30")] <- NA
       }  
       
       
